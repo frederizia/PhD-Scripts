@@ -1,0 +1,98 @@
+# Sample LAMMP input script for tethered graphene
+units       real
+dimension   3
+boundary    p p p
+atom_style  full
+read_data   graphene_spce_CH_only_delx9_pe1.00_p0.00.dat
+
+variable    sigO equal 3.166
+variable    epsO equal 0.1553
+
+variable    sigH equal 0.0
+variable    epsH equal 0.0
+
+variable    sigC_CH equal 2.985
+variable    epsC_CH equal 0.046
+
+variable    sigH_CH equal 2.42
+variable    epsH_CH equal 0.0301
+
+variable    sigC equal 0.0
+variable    epsC equal 0.0
+
+# C-O LJ parameters Werder et al. JPC B 107, 1345 (2003)
+variable    sigCO equal 3.190 
+variable    epsCO equal 0.392
+
+pair_style   lj/cut/coul/dsf 0.18 12.0 12.0
+pair_modify  mix arithmetic
+pair_coeff   1 1 ${epsO} ${sigO}   	# O-O
+pair_coeff   1 2 0.0 0.0  		# O-H
+pair_coeff   2 2 0.0 0.0 		# H-H
+pair_coeff   1 3 ${epsCO} ${sigCO} 	# O-C
+pair_coeff   2 3 0.0 0.0		# H-C
+pair_coeff   3 3 ${epsC} ${sigC} 	# C-C
+pair_coeff   4 4 ${epsH_CH} ${sigH_CH}	# H_CH-H_CH
+pair_coeff   5 5 ${epsC_CH} ${sigC_CH}	# C_CH-C_CH
+
+
+#pair_modify  mix arithmetic
+bond_style   harmonic
+bond_coeff   1 500.00 1.0
+bond_coeff   2 478.40 1.42
+bond_coeff   3 500.00 1.08
+
+angle_style  harmonic
+angle_coeff  1 100.0 109.4712
+angle_coeff  2 100.0 120
+
+improper_style harmonic
+improper_coeff 1 500.0 0
+
+#kspace_style pppm 1.0e-5
+
+
+special_bonds   lj/coul 0.0 0.0 0.0
+
+
+variable    T equal 300
+variable    P equal 1000
+variable    dt equal 2.0
+variable    t equal  100
+variable    t_run equal 1000000
+
+group       spce type 1 2
+group       graphene type 3 5
+
+velocity    all create 100.0 1234 dist gaussian mom yes
+
+fix         SPRINGS graphene spring/self 100
+
+#fix         NPT all npt temp $T $T 100.0 z $P $P 2000
+
+fix         NVT all nvt temp $T $T 100.0
+
+timestep    ${dt}
+
+thermo      $t
+thermo_style custom step temp ke pe etotal press vol
+
+
+# Define profiles
+variable    dz equal 0.5 # bin width for spatial averaging
+variable    t_win equal ${t_run}/10
+variable    t_freq equal 1
+variable    t_rep equal ${t_win}/${t_freq}
+
+fix         GENPROF_INIT spce ave/spatial ${t_freq} ${t_rep} ${t_win} &
+            z 0 ${dz} density/mass vx vy vz units box norm all   &
+            file genprof_spce_init.dat
+
+
+dump        PRINTXYZ all xyz 100 graphene_run.xyz
+dump_modify PRINTXYZ element O H C H C
+#minimize    1.0e-3 1.0e-6 1000 1000
+fix         SHAKE all shake 0.0001 20 10000 b 1 a 1
+run         ${t_run}
+
+write_restart graphene_spce.restart
