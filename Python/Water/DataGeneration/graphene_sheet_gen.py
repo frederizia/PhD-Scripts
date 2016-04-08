@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 ## -- G R A P E N E _ S H E E T _ O H _ G E N . P Y -- ##
 ## Short script for generating functionalised graphene sheet configurations 
 ## with spce water for use with LAMMPS. 
