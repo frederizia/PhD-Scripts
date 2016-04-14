@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """Code should be run from directory containing the data"""
 from __future__ import division
 import numpy as np

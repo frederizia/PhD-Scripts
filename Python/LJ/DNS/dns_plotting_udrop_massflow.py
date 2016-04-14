@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """Script written to plot the velocity change across channel and comparing the mass flow for different set ups with regard to the viscosities."""
 from __future__ import division
 import numpy as np

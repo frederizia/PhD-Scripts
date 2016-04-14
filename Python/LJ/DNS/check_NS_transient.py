@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """Checking whether Navier-Stokes like equations are satisfied for the transient code. Slightly shorter script as there aren't as many cases considered"""
 from __future__ import division
 import numpy as np

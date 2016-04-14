@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 """Read in data and plot important variables for DNS runs
 
 # NOTE: should be run from '~/Dropbox/DNS\ Solver/PIETRO'"""
