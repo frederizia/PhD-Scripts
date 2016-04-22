@@ -29,7 +29,7 @@ dens = args.rhof
 
 if len(T) ==1:
 	T = T[0]
-'''
+
 press = []
 shear = []
 bulk = []
@@ -38,11 +38,9 @@ density = []
 
 def read_log(T, den):
 
-    if T=='1.7':
-    	filename = "/media/fred/My Passport/LJ_relations_results/T%s/SMALLandEQN/rhof%s/log.lammps_rel" % (T, den)
+    filename = "/media/fred/My Passport/LJ_relations_results/T%s/rhof%s/log.rel_rhof%s" % (T,den,den)
 
-    else:
-    	filename = "/media/fred/My Passport/LJ_relations_results/T%s/log.rel_rhof%s" % (T,den)
+    print filename
 
 
     # read in data
@@ -83,7 +81,7 @@ def save_data(D, P, SH, BU):
 	print data_array
 	print type(data_array[0][0])
 	np.savetxt('relations_T%s.dat'%(T), data_array,fmt="%s",header = 'Density Pressure Shear Bulk')
-	return data_array'''
+	return data_array
 
 def read_data(name):
 	JCPdata = np.loadtxt('%s'%name)
@@ -92,56 +90,20 @@ def read_data(name):
 	return JCPrho, JCPeta
 
 
-def P_17(rho):
-	rho_tmp = np.array(map(float,rho))
-	P = 0.03233*np.exp(6.049*rho_tmp)
-	return P
-
-def P_20(rho):
-	rho_tmp = np.array(map(float,rho))
-	P = 0.07503*np.exp(5.318*rho_tmp)
-	return P
-
-def P_25(rho):
-	rho_tmp = np.array(map(float,rho))
-	return 0.1568*np.exp(4.773*rho_tmp)
-
-def shear_17(rho):
-	rho_tmp = np.array(map(float,rho))
-	return 5.426*rho_tmp**(5.344) + 0.3384
-
-def shear_20(rho):
-	rho = np.array(map(float,rho))
-	return 4.196*rho**(4.336) + 0.4596
-
-def shear_25(rho):
-	rho_tmp = np.array(map(float,rho))
-	return 2.675*rho_tmp**(2.302) + 0.1549
-
-def bulk_17(rho):
-	rho_tmp = np.array(map(float,rho))
-	return 2.926*rho_tmp**(2.114)
-
-def bulk_20(rho):
-	rho_tmp = np.array(map(float,rho))
-	return 0.01689*np.exp(5.463*rho_tmp)
-
-def bulk_25(rho):
-	rho_tmp = np.array(map(float,rho))
-	return 2.882*rho_tmp**(1.74)
-	#return 12.18*rho**(104.6)+1.167
 
 def Woodcock(Rho, Eta_0, T_in):
 	#rho_tmp = np.array(map(float,Rho))
 	T_tmp = float(T_in)
 	term1 = np.sqrt(2)*(1-T_tmp**(-4)-(T_tmp/8))*Rho
 	term2 = 3.025*Rho**4/(T_tmp**(1/3))
-	print (2.535+Eta_0)/Eta_0, term1, term2, Rho**4, (1/T_tmp)**(1/3)
+	#print (2.535+Eta_0)/Eta_0, term1, term2, Rho**4, (1/T_tmp)**(1/3)
 	return Eta_0*(1+term1+term2)
 
 	
-# PLOTTING
+# Read in data
 
+# JCP data for comparison
+# ETA
 name = 'JCPdataEtaT1.35.dat'
 JCP_rho, JCP_eta = read_data(name)
 #sort arrays by density
@@ -149,19 +111,30 @@ sorti = np.argsort(JCP_rho)
 JCP_rho, JCP_eta = JCP_rho[sorti], JCP_eta[sorti]
 eta_0 = JCP_eta[0]
 
+# LAMBDA
+name = 'JCPdataLambdaT1.35.dat'
+JCP_rho, JCP_lda = read_data(name)
+#sort arrays by density
+sorti = np.argsort(JCP_rho)
+JCP_rho, JCP_lda = JCP_rho[sorti], JCP_lda[sorti]
+
+
 
 print Woodcock(0.8442, 0.076, 0.722)
 
-'''dens_new =[]
+# Our simulation data
+dens_new =[]
 
 for d in dens:
 	try:
 		read_log(T,d)
 		dens_new.append(d)
-	except IOError: pass'''
+	except IOError: pass
 
 
-#final_data = save_data(dens_new,press,shear,bulk)
+final_data = save_data(dens_new,press,shear,bulk)
+
+# PLOTTING
 
 
 matplotlib.rcParams.update({'font.size': 19})
@@ -170,15 +143,26 @@ rc('text', usetex=True)
 print T
 
 fig = plt.figure()
-#plt.plot(final_data[:,0], final_data[:,2], marker ='D', linestyle = 'none')
-plt.plot(JCP_rho, Woodcock(JCP_rho, eta_0, T), lw = 2.0,linestyle = 'dashed', c='r', label = "Woodcock")
-plt.plot(JCP_rho, JCP_eta, lw = 2.0,linestyle = 'dashed', marker = 'D',c='b', label = "JCP 2004")
-plt.ylabel('$\mathrm{Shear}$ $\mathrm{viscosity}$')
+plt.plot(final_data[:,0], final_data[:,2], marker ='D', linestyle = 'none', c='g', label='$\mathrm{This}$ $\mathrm{work}$')
+#plt.plot(JCP_rho, Woodcock(JCP_rho, eta_0, T), lw = 2.0,linestyle = 'dashed', c='r', label = "Woodcock")
+plt.plot(JCP_rho, JCP_eta, lw = 2.0, marker = 'x', linestyle = 'none', c='b', label = '$\mathrm{JCP}$ $\mathrm{2004}$')
+plt.ylabel('$\eta$')
 plt.xlabel('$\\rho$')
-plt.xlim(0.1,0.9)
+plt.xlim(0.0,0.95)
 plt.legend()
 #plt.ylim(0,6)
 plt.savefig('PLOTS/comp_rho_v_shear_T%s.pdf'%(T))
+plt.show()
+
+fig = plt.figure()
+plt.plot(final_data[:,0], final_data[:,3], marker ='D', linestyle = 'none', c='g', label='$\mathrm{This}$ $\mathrm{work}$')
+plt.plot(JCP_rho, JCP_lda, lw = 2.0, marker = 'x', linestyle = 'none', c='b', label = '$\mathrm{JCP}$ $\mathrm{2004}$')
+plt.ylabel('$\lambda$')
+plt.xlabel('$\\rho$')
+plt.xlim(0.0,0.95)
+plt.legend()
+#plt.ylim(0,6)
+plt.savefig('PLOTS/comp_rho_v_bulk_T%s.pdf'%(T))
 plt.show()
 
 

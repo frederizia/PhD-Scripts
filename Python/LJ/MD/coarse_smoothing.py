@@ -12,7 +12,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import axes3d
 from tools import *
 from scipy import interpolate
-from scipy.interpolate import Rbf
+from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import LSQBivariateSpline
 
 # Parse arguments form command line
 parser = argparse.ArgumentParser()
@@ -53,9 +54,11 @@ yvals = np.arange(rhoinit.shape[0])
 xvals = np.arange(rhoinit.shape[1])
 Xvals, Yvals = np.meshgrid(xvals, yvals)
 
+fac = 10.0
+
 # Define finer meshgrid
-yvals_fine = np.arange(rhoinit.shape[0]*2)
-xvals_fine = np.arange(rhoinit.shape[1]*2)
+yvals_fine = np.linspace(0,rhoinit.shape[0], rhoinit.shape[0]*fac)
+xvals_fine = np.linspace(0,rhoinit.shape[1], rhoinit.shape[1]*fac)
 Xvals_fine, Yvals_fine = np.meshgrid(xvals_fine, yvals_fine)
 
 '''x, y = np.mgrid[-1:1:135j, -1:1:109j]
@@ -68,12 +71,17 @@ znew = interpolate.bisplev(xnew[:,0], ynew[0,:], tck)
 
 print xnew.shape,znew.shape'''
 
+print rhoinit.shape, yvals.size, xvals.size
+
 # Perform interpolation
 #tck = interpolate.bisplrep(Xvals, Yvals, rhoinit)
 #rhointer = interpolate.bisplev(Xvals_fine[:,0], Yvals_fine[0,:], tck)
+inter = RectBivariateSpline(yvals, xvals, rhoinit)
+rhointer = inter(yvals_fine, xvals_fine)
 
-rbf = Rbf(xvals,yvals,rhoinit, epsilon=2)
-rhointer = rbf(Xvals_fine, Yvals_fine)
+#rhointer = LSQBivariateSpline(Yvals.ravel(), Xvals.ravel(), rhoinit.ravel(),Yvals_fine.ravel(),Xvals_fine.ravel())
+#rhointer = rhointer.reshape(yvals_fine.shape[0],yvals_fine.shape[1])
+
 
 print rhointer
 
@@ -90,7 +98,7 @@ plt.tick_params(pad=7)
 ctest=plt.contourf(xvals, yvals, rhoinit, cmap=cm.RdBu, levels=np.linspace(den_min,den_max,500))
 plt.colorbar()
 plt.savefig('smoothing_orig_den_2d_%s_init.png'%name_nemd)
-plt.show()
+#plt.show()
 
 den_max = np.max(rhointer)
 den_min = np.min(rhointer)
@@ -104,4 +112,9 @@ plt.colorbar()
 plt.savefig('smoothing_den_2d_%s_init.png'%name_nemd)
 plt.show()
 
-
+#test plot
+test_pos=100
+plt.plot(yvals, rhoinit[:,test_pos], label='init')
+plt.plot(yvals_fine, rhointer[:,test_pos*fac], label='inter')
+plt.legend()
+plt.show()
