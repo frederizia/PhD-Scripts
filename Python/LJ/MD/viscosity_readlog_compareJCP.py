@@ -57,8 +57,8 @@ def read_log(T, den):
         log_data = data_lines[i].split()
 
 	if len(log_data) >1:
-			
-		if log_data[1] == 'shear':
+		#print log_data	
+		if log_data[1] == 'shear' and log_data[2] == 'viscosity' and log_data[3] == ':':
 			print 'Shear viscosity: ', log_data[4]
 			shear.append(float(log_data[4]))
 		if log_data[1] == 'bulk' and log_data[2] == 'pt':
@@ -120,7 +120,7 @@ JCP_rho, JCP_lda = JCP_rho[sorti], JCP_lda[sorti]
 
 
 
-print Woodcock(0.8442, 0.076, 0.722)
+#print Woodcock(0.8442, 0.076, 0.722)
 
 # Our simulation data
 dens_new =[]
@@ -156,8 +156,8 @@ plt.show()
 
 fig = plt.figure()
 plt.plot(final_data[:,0], final_data[:,3], marker ='D', linestyle = 'none', c='g', label='$\mathrm{This}$ $\mathrm{work}$')
-plt.plot(JCP_rho, JCP_lda, lw = 2.0, marker = 'x', linestyle = 'none', c='b', label = '$\mathrm{JCP}$ $\mathrm{2004}$')
-plt.ylabel('$\lambda$')
+plt.plot(JCP_rho, JCP_lda, lw = 2.0, marker = 'x', linestyle = 'none', c='b', label = '$\mathrm{JCP}$ $\mathrm{2005}$')
+plt.ylabel('$\kappa$')
 plt.xlabel('$\\rho$')
 plt.xlim(0.0,0.95)
 plt.legend()

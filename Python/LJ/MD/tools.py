@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from __future__ import division
 import numpy as np
+import scipy.integrate as si
+
 
 def read_data(h,f,eps,rhof,md,VAR,extra):
 	'''Code to read in density and velocity data from a 2d LAMMPS output file'''
@@ -139,35 +141,55 @@ def rho_init(rhovals):
 	rho_init = np.zeros(rhovals.shape) # i=y, j=x
 	P_init = np.zeros(rhovals.shape) # i=y, j=x
 
-	D1=0.03233
-	D2=6.049
+#	D1=0.03233
+#	D2=6.049
+
+	a = 0.163
+	b = -1.078
+	c = 0.02561
+	d = 6.305
 
 	rho_in = np.mean(rhovals[:,0:10])
 	rho_out = np.mean(rhovals[:,-10:-1])
-
+	print rho_in, rho_out
 	P_in = P17(rho_in)
 	P_out = P17(rho_out)
 	print 'P_in: ', P_in
 	print 'P_out: ',P_out
-	
+	deltaP = P_in - P_out
 
 	for j in range(rhovals.shape[1]):
 		Pval = ((P_out-P_in)/rhovals.shape[1])*j + P_in
-
-		rhoval = np.log(Pval/D1)/D2
+		
+		# make approximation to ignore second term
+		rhoval = np.log(Pval)/(b*np.log(a))
 		rho_init[:,j] = rhoval
+	print rho_init[0,0], rho_init[0,-1]
+	return rho_init, deltaP
 
-	return rho_init
+def P17(rho):
+        #rho = np.array(map(float,rho))
+        P = 0.163*np.exp(-1.078*rho)+0.02561*np.exp(6.305*rho)
+        return P
 
 	
-def P17(rho):
+#def P17(rho):
 
-	D1=0.03233
-	D2=6.049
-	return D1*np.exp(D2*rho)
+#	D1=0.03233
+#	D2=6.049
+#	return D1*np.exp(D2*rho)
 
 
 
+def mass_flow(U, RHO):
+        MF = []
+        for i in range(U.shape[1]):
+                URHO = []
+                for j in range(U.shape[0]):
+                        URHO.append(U[j][i]*RHO[j][i])
+                intURHO = si.simps(URHO)
+                MF.append(intURHO)
+        return MF
 
 
 

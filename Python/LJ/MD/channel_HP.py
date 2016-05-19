@@ -74,7 +74,6 @@ MIDP = mid_point(xvals,yvals,rhovals)[0]
 np.savetxt('DATA/rho_sym_%s.dat'%name_nemd, rho_new, fmt="%s", header = "%i %i %.3f %.3f" % (rho_new.shape[1], rho_new.shape[0],xvals[-1],yvals_new[-1]))
 np.savetxt('DATA/u_sym_%s.dat'%name_nemd, rho_new, fmt="%s", header = "%i %i %.3f %.3f" % (u_new.shape[1], u_new.shape[0],xvals[-1],yvals_new[-1]))
 
-# NOTE - this does not currently work.
 rho_simple_sym = rho_init(rho_new)[0]
 # try transposing it
 np.savetxt('DATA/rho_simple_sym_%s.dat'%name_nemd, rho_simple_sym, fmt="%s", header = "%i %i %.3f %.3f" % (rho_new.shape[1], rho_new.shape[0],xvals[-1],yvals_new[-1]))
@@ -255,7 +254,6 @@ m,b = np.polyfit(xvals, rhovals[MIDP,:], 1)
 fig = plt.figure()
 plt.plot(xvals, rhovals[MIDP,:], linestyle = 'None', marker = 'D',c='b')
 plt.plot(xvals, m*xvals+b, lw = 2, linestyle = 'dashed',c='b')
-#plt.plot(xvals, rho_simple_sym[0,:], lw = 2, linestyle = 'dashed',c='b')
 plt.xlabel('$x$ / $\sigma$')
 plt.ylabel('$\\rho_{\mathrm{centre}}$  / $\sigma^{-3}$')
 #plt.legend()

@@ -148,7 +148,7 @@ for d in dens:
 	except IOError: pass
 rho_0 = 0.4
 final_data = save_data(dens_new,press,shear,bulk)
-rhovals = np.arange(0.05,0.91,0.01)
+rhovals = np.arange(0,1.0,0.1)
 
 matplotlib.rcParams.update({'font.size': 19})
 rc('text', usetex=True)
@@ -156,11 +156,11 @@ rc('text', usetex=True)
 fig = plt.figure()
 plt.plot(final_data[:,0], final_data[:,1], marker ='D' , linestyle = 'none')
 if T == '1.7':
-	plt.plot(rhovals, P_17(rhovals), lw = 2.0, linestyle = 'dashed', c='b')
+	plt.plot(final_data[:,0], P_17(final_data[:,0]), lw = 2.0, linestyle = 'dashed', c='b')
 if T == '2.0':
-	plt.plot(rhovals, P_20(rhovals), lw = 2.0, linestyle = 'dashed', c='b')
+	plt.plot(final_data[:,0], P_20(final_data[:,0]), lw = 2.0, linestyle = 'dashed', c='b')
 if T == '2.5':
-	plt.plot(rhovals, P_25(rhovals), lw = 2.0, linestyle = 'dashed', c='b')
+	plt.plot(final_data[:,0], P_25(final_data[:,0]), lw = 2.0, linestyle = 'dashed', c='b')
 plt.ylabel('$\mathrm{P}$')
 plt.xlabel('$\\rho$')
 plt.xlim(0.1,0.9)
@@ -171,11 +171,11 @@ fig = plt.figure()
 plt.plot(final_data[:,0], final_data[:,2], marker ='D', linestyle = 'none')
 #plt.plot(final_data[:,0], Woodcock(final_data[:,0], rho_0, T), lw = 2.0,linestyle = 'dashed', c='r', label = "Woodcock")
 if T == '1.7':
-	plt.plot(rhovals, shear_17(rhovals), lw = 2.0,linestyle = 'dashed', c='b', label= "Fit")
+	plt.plot(final_data[:,0], shear_17(final_data[:,0]), lw = 2.0,linestyle = 'dashed', c='b', label= "Fit")
 if T == '2.0':
-	plt.plot(rhovals, shear_20(rhovals), lw = 2.0,linestyle = 'dashed', c='b')
+	plt.plot(final_data[:,0], shear_20(final_data[:,0]), lw = 2.0,linestyle = 'dashed', c='b')
 if T == '2.5':
-	plt.plot(rhovals, shear_25(rhovals), lw = 2.0, linestyle = 'dashed', c='b')
+	plt.plot(final_data[:,0], shear_25(final_data[:,0]), lw = 2.0, linestyle = 'dashed', c='b')
 plt.ylabel('$\eta$')
 plt.xlabel('$\\rho$')
 plt.xlim(0.1,0.9)
@@ -187,12 +187,12 @@ plt.show()
 fig = plt.figure()
 plt.plot(final_data[:,0], final_data[:,3], marker ='D', linestyle = 'none')
 if T == '1.7':
-	plt.plot(rhovals, bulk_17(rhovals), lw = 2.0, linestyle = 'dashed', c='b')
+	plt.plot(final_data[:,0], bulk_17(final_data[:,0]), lw = 2.0, linestyle = 'dashed', c='b')
 if T == '2.0':
-	plt.plot(rhovals, bulk_20(rhovals), lw = 2.0, linestyle = 'dashed', c='b')
+	plt.plot(final_data[:,0], bulk_20(final_data[:,0]), lw = 2.0, linestyle = 'dashed', c='b')
 if T == '2.5':
-	plt.plot(rhovals, bulk_25(rhovals), lw = 2.0, linestyle = 'dashed', c='b')
-plt.ylabel('$\kappa$')
+	plt.plot(final_data[:,0], bulk_25(final_data[:,0]), lw = 2.0, linestyle = 'dashed', c='b')
+plt.ylabel('$\lambda$')
 plt.xlabel('$\\rho$')
 plt.xlim(0.1,0.9)
 #plt.ylim(-2,14)
@@ -202,13 +202,13 @@ plt.show()
 
 
 # COMPARE EXPRESSIONS FOR T
-'''
+
 
 fig = plt.figure()
-plt.plot(rhovals, P_135(rhovals), label = '$T=1.35$', lw = 2.0)
-plt.plot(rhovals, P_17(rhovals), label = '$T=1.7$', lw = 2.0)
-plt.plot(rhovals, P_20(rhovals), label = '$T=2.0$', lw = 2.0)
-plt.plot(rhovals, P_25(rhovals), label = '$T=2.5$', lw = 2.0)
+plt.plot(rhovals, P_135(final_data[:,0]), label = '$T=1.35$', lw = 2.0)
+plt.plot(rhovals, P_17(final_data[:,0]), label = '$T=1.7$', lw = 2.0)
+plt.plot(rhovals, P_20(final_data[:,0]), label = '$T=2.0$', lw = 2.0)
+plt.plot(rhovals, P_25(final_data[:,0]), label = '$T=2.5$', lw = 2.0)
 plt.ylabel('$\mathrm{P}$')
 plt.xlabel('$\\rho$')
 plt.legend()
@@ -218,10 +218,10 @@ plt.savefig('PLOTS/rho_v_P.pdf')
 #plt.show()
 
 fig = plt.figure()
-plt.plot(rhovals, shear_135(rhovals), label = '$T=1.35$', lw = 2.0)
-plt.plot(rhovals, shear_17(rhovals), label = '$T=1.7$', lw = 2.0)
-plt.plot(rhovals, shear_20(rhovals), label = '$T=2.0$', lw = 2.0)
-plt.plot(rhovals, shear_25(rhovals), label = '$T=2.5$', lw = 2.0)
+plt.plot(rhovals, shear_135(final_data[:,0]), label = '$T=1.35$', lw = 2.0)
+plt.plot(rhovals, shear_17(final_data[:,0]), label = '$T=1.7$', lw = 2.0)
+plt.plot(rhovals, shear_20(final_data[:,0]), label = '$T=2.0$', lw = 2.0)
+plt.plot(rhovals, shear_25(final_data[:,0]), label = '$T=2.5$', lw = 2.0)
 plt.ylabel('$\eta$')
 plt.xlabel('$\\rho$')
 plt.legend()
@@ -231,11 +231,11 @@ plt.savefig('PLOTS/rho_v_shear.pdf')
 #plt.show()
 
 fig = plt.figure()
-plt.plot(rhovals, bulk_135(rhovals), label = '$T=1.35$', lw = 2.0)
-plt.plot(rhovals, bulk_17(rhovals), label = '$T=1.7$', lw = 2.0)
-plt.plot(rhovals, bulk_20(rhovals), label = '$T=2.0$', lw = 2.0)
-plt.plot(rhovals, bulk_25(rhovals), label = '$T=2.5$', lw = 2.0)
-plt.ylabel('$\kappa$')
+plt.plot(rhovals, bulk_135(final_data[:,0]), label = '$T=1.35$', lw = 2.0)
+plt.plot(rhovals, bulk_17(final_data[:,0]), label = '$T=1.7$', lw = 2.0)
+plt.plot(rhovals, bulk_20(final_data[:,0]), label = '$T=2.0$', lw = 2.0)
+plt.plot(rhovals, bulk_25(), label = '$T=2.5$', lw = 2.0)
+plt.ylabel('$\lambda$')
 plt.xlabel('$\\rho$')
 plt.legend()
 plt.xlim(0.1,0.9)
@@ -244,4 +244,4 @@ plt.savefig('PLOTS/rho_v_bulk.pdf')
 #plt.show()
 
 
-'''
+
