@@ -83,6 +83,49 @@ def read_data(h,f,eps,rhof,md,VAR,extra):
 
 	return xcoord, ycoord, VAR_array
 
+def read_log(FILE,VAR):
+
+
+    VARdata = []
+    steps = []
+    count = 0
+
+    # read in data
+    f = open(FILE,'r')
+    data = f.read()
+
+    if VAR == 'T':
+	idx = 1
+    if VAR == 'P':
+	idx = 2
+    if VAR == 'Pleft':
+	idx = 11
+    if VAR == 'Pright':
+	idx = 12
+
+    data_lines = data.split('\n')
+
+    for i in range(0,len(data_lines)-1):
+
+        log_data = data_lines[i].split()
+
+	#print log_data
+        # only take the lines that include thermo data
+
+	if log_data != [] and log_data[0] == 'Loop':
+		count += 1
+
+        # don't include lines after thermo data
+	if count == 1:
+        	if log_data[0] != 'SHAKE' and log_data[0] != '1' and log_data[0] != 'Step':
+			steps.append(log_data[0])
+			VARdata.append(log_data[idx])
+        if log_data != [] and log_data[0] == 'Step':
+            	count = 1
+
+	
+    return steps, VARdata
+
 def mid_point(X,Y,VAR):
 	'''Code to find the mid point in the array'''
 
@@ -190,6 +233,33 @@ def mass_flow(U, RHO):
                 intURHO = si.simps(URHO)
                 MF.append(intURHO)
         return MF
+
+
+def wall_pos(RHO, Y):
+    	lower = 0
+	lower_idx = 0
+	RHO = np.average(RHO,axis=1)
+   	for i in range(len(RHO)):
+		#print RHO[i]
+		if round(RHO[i],4) == 0.0 and round(RHO[i+1],4) != 0:
+			lower_idx = i
+		if RHO[i] > RHO[i+1]:
+			lower += 1
+			#print lower
+			if lower >= 4:
+				upper_idx = i-4
+				break
+	rho_idx = lower_idx+int((upper_idx-lower_idx)/3)
+	rhoval = RHO[rho_idx]
+	ratio = rho_idx/len(RHO)
+	y_idx = int(ratio*len(Y))
+	yval = Y[y_idx]
+
+	print rho_idx, rhoval, y_idx, yval
+
+	return rho_idx, rhoval, y_idx, yval
+
+
 
 
 

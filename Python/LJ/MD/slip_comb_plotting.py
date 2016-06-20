@@ -52,6 +52,6 @@ for i in range(len(name)):
 	#print vel, slip[i], len(V[i]), len(slip[i])
 	plt.plot(V[i], slip[i], linestyle = 'dashed',lw=2.0, marker = 'D', label='$\\rho_s$ = %s, $\epsilon$ = %s'%(RHOS,EPS))
 plt.legend(loc='lower right')
-plt.savefig('PLOTS/comb_%s.pdf'%(plt_name))
+plt.savefig('PLOTS/comb_%s.pdf'%plt_name)
 plt.show()
 

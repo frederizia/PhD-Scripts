@@ -1,3 +1,6 @@
+"""Read in data and plot important variables for DNS runs
+
+# NOTE: should be run from '~/Dropbox/DNS\ Solver/PIETRO'"""
 from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,7 +15,7 @@ import argparse
 import re
 from matplotlib import rc
 
-# NOTE: should be run from '~/Dropbox/DNS\ Solver/PIETRO'
+
 
 
 

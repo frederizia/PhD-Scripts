@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 """Read in data and plot important variables for DNS runs
 
@@ -224,7 +224,6 @@ if plotting == 'y':
 	width = 0.2
 	mdot_bar = ax.bar(ind+width/2, mdot, width, color = 'b')
 	plt.ylabel('$\mathrm{Mass}$ $\mathrm{flow}$')
-	plt.savefig('{}/massflow_{}_{}_{}.png'.format(folder,nptsX,nptsY,folder))
 	plt.show()
 
 #	# rho init

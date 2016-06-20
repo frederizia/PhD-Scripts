@@ -44,7 +44,7 @@ if var == 'eps':
 	name_nemd = 'H%s_eps%s_f%s_rhof%s'%(H,'%s',F,RHOF)
 	name_plot = 'eps_H%s_f%s_rhof%s'%(H,F,RHOF)
 	var_lgd = '\epsilon'
-        logfile = 'H%/eps%/log.LJ_nemd_H%s_rhof%s_f%s'%(H,'%s',H,RHOF,F)
+        logfile = 'H%s/eps%s/log.LJ_nemd_H%s_rhof%s_f%s'%(H,'%s',H,RHOF,F)
 
 elif var == 'H':
 	VAR = args.H
@@ -55,7 +55,7 @@ elif var == 'H':
 	name_nemd = 'H%s_eps%s_f%s_rhof%s'%('%s',EPS,F,RHOF)
 	name_plot = 'H_eps%s_f%s_rhof%s'%(EPS,F,RHOF)
 	var_lgd = var
-	logfile = 'H%/eps%/log.LJ_nemd_H%s_rhof%s_f%s'%('%s',EPS,'%s',RHOF,F)
+	logfile = 'H%s/eps%s/log.LJ_nemd_H%s_rhof%s_f%s'%('%s',EPS,'%s',RHOF,F)
 
 elif var == 'F':
 	VAR = args.f
@@ -78,7 +78,7 @@ elif var == 'rhos':
         name_nemd = 'H%s_eps%s_f%s_rhof%s_%s'%(H,EPS,F,RHOF,'%s')
         name_plot = 'rhos_H%s_eps%s_f%s_rhof%s'%(H,EPS,F,RHOF)
         var_lgd = '\\rho_s'
-        logfile = 'H%/eps%/%s/log.LJ_nemd_H%s_rhof%s_f%s'%(H,EPS,'%s',H,RHOF,F)
+        logfile = 'H%s/eps%s/%s/log.LJ_nemd_H%s_rhof%s_f%s'%(H,EPS,'%s',H,RHOF,F)
 
 elif var == 'rhof':
         VAR = args.x
@@ -90,7 +90,7 @@ elif var == 'rhof':
         name_nemd = 'H%s_eps%s_f%s_%s_%s'%(H,EPS,F,RHOF,'%s')
         name_plot = 'rhof_H%s_eps%s_f%s'%(H,EPS,F)
         var_lgd = '\\rho_f'
-        logfile = 'H%/eps%/%s/log.LJ_nemd_H%s_%s_f%s'%(H,EPS,'%s',H,'%s',F)
+        logfile = 'H%s/eps%s/%s/log.LJ_nemd_H%s_%s_f%s'%(H,EPS,'%s',H,'%s',F)
 
 # If we are in the rhos folder
 if Xtra != 'None' and var != 'rhos' and var != 'rhof':
@@ -101,14 +101,13 @@ if var == 'rhos':
 	for v in VAR:
 		tick_tmp = re.search('rhos(.*)',v).group(1)
 		VAR_ticks.append(tick_tmp)
-if var == 'rhof':
+elif var == 'rhof':
         VAR_ticks = []
         for v in VAR:
                 tick_tmp = re.search('rhof(.*)',v).group(1)
                 VAR_ticks.append(tick_tmp)
 else:
 	VAR_ticks = VAR
-
 
 rhovals = []
 uvals = []
@@ -131,6 +130,11 @@ def HP(yvals,delta_P,eta,L,D):
         u = ((delta_P)/(2*eta*L))*(D**2-yvals**2)
         return u
 
+def corr_HP(yvals,delta_P,eta,L,D,ls):
+	u = ((delta_P)/(2*eta*L))*(D**2-yvals**2+2*ls)
+	return u
+
+slip_length = {('1.0','0.1'):3.7,('1.0','1.0'):0.4,('1.0','2.0'):0.1,('2.0','0.05'):7.3,('2.0','0.1'):4.7,('2.0','1.0'):1.7,('1.0','0.5'):0.9}
 
 matplotlib.rcParams.update({'font.size': 19})
 #matplotlib.rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
@@ -144,7 +148,7 @@ fig5, ax5 = plt.subplots()
 fig6, ax6 = plt.subplots()
 #fig3 = plt.figure()
 #ax3 = fig3.add_subplot(111)
-
+umax = [] 
 
 for i in range(len(VAR)):
 	try:
@@ -158,13 +162,22 @@ for i in range(len(VAR)):
 		y_tmp = np.loadtxt('DATA/y_%s.dat'%name_tmp)
 		x_tmp = np.loadtxt('DATA/x_%s.dat'%name_tmp)		
 
+
 		if var[0:4] == 'rhof' or var=='H':
 			logfile_tmp = logfile % (V,V)
 		else:
 			logfile_tmp = logfile % (V)
 
-		
-			
+		pl = np.array(map(float,read_log(logfile_tmp, 'Pleft')[1]))
+		pr = np.array(map(float,read_log(logfile_tmp, 'Pright')[1]))
+		Pleft_tmp = np.average(pl)
+		Pright_tmp = np.mean(pr)	
+	
+		print 'Pl, Pr'
+		print Pleft_tmp, Pright_tmp
+	
+		umax.append(np.max(np.average(u_tmp,axis=1)))
+
 		#try finding midpoint
 		midp_tmp, left, right = mid_point(y_tmp, y_tmp, rho_tmp)
 
@@ -196,12 +209,29 @@ for i in range(len(VAR)):
 
                 # Calculation of quantities needed for HP
                 eta_tmp = shear_17(np.mean(rho_tmp[:,:])) # eta
-                deltaP_tmp = rho_init(rho_tmp)[1]
-                deltaP.append(deltaP_tmp) # pressure drop
-                L_tmp = x_tmp[-1]
-                D_tmp = yvals[-1]
+                deltaP_tmp = Pleft_tmp-Pright_tmp
+		deltaP.append(deltaP_tmp) # pressure drop
+		L_tmp = x_tmp[-1]
+		wallpos = wall_pos(rho_tmp,y_tmp)
+		D_tmp = yvals[len(yvals)-wallpos[2]]
+		print D_tmp, yvals[-1]
 
-	
+
+		# define slip length for different cases
+		rhos_tmp = '1.0'  # set as default
+		Ls_tmp = 0
+		eps_tmp = re.search('eps(.*)_f',name_tmp).group(1)
+		if 'rhos' in name_tmp:
+			rhos_tmp = re.search('rhos(.*)',name_tmp).group(1) 
+		Ls_key = (rhos_tmp, eps_tmp)
+		if Ls_key in slip_length.keys():
+			Ls_tmp = slip_length[Ls_key]
+
+
+		print 'slip length for ', Ls_key, ' is: ', Ls_tmp
+		
+		#-----------------PLOTTING-------------------
+
 		# rho average over L
 		ax1.plot(y_tmp, np.average(rho_tmp[:,50:70],axis=1), c=colours[i_tmp], linestyle = 'dashed', label = '$%s = \mathrm{%s}$'%(var_lgd,VAR_ticks[i]))
 		ax1.set_xlabel('$Y$ / $\sigma$')
@@ -222,9 +252,13 @@ for i in range(len(VAR)):
 
                 # u average over L - comparison to HP
 
+		print 'HP input: ', deltaP_tmp, eta_tmp, L_tmp, D_tmp
+
                 ax6.plot(y_tmp, np.average(u_tmp[:,50:150],axis=1), c=colours[i_tmp], linestyle = 'dashed', label = '$%s = \mathrm{%s}$'%(var_lgd,VAR_ticks[i]))
-                ax6.plot(y_tmp, HP(y_tmp,deltaP_tmp,eta_tmp,L_tmp,D_tmp), c=colours[i_tmp]) 
+                ax6.plot(y_tmp, HP(y_tmp,deltaP_tmp,eta_tmp,L_tmp,D_tmp), c=colours[i_tmp],linestyle = 'dotted', lw=2.0) 
+                ax6.plot(y_tmp, corr_HP(y_tmp,deltaP_tmp,eta_tmp,L_tmp,D_tmp,Ls_tmp), c=colours[i_tmp], lw=2.0)
 		ax6.set_xlabel('$Y$ / $\sigma$')
+		#ax6.set_ylim(0, 0.3)
                 #plt.xlim(l_lim-0.3,r_lim+0.3)
                 ax6.set_ylabel('$u_x$ / $(\epsilon/m)^{(1/2)}$')
                 ax6.legend()
@@ -263,6 +297,9 @@ ax5.plot(deltaP, mf_fit,c='b',lw = 2, linestyle = 'dashed')
 ax5.set_xlabel('$\Delta P/(\sigma^3/\epsilon)$')
 #plt.xlim(l_lim-0.3,r_lim+0.3)
 ax5.set_ylabel('$\dot{m}/\\tau^{-1}$')
+
+
+ax6.set_ylim(0, np.max(umax)+0.05)
 
 
 fig1.savefig('PLOTS/comb_rhovals_avg_Y_%s.pdf'%name_plot)
