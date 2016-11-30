@@ -4794,7 +4794,7 @@ def write_lammps_molecule(mol, mol_bond, mol_angle, mol_improper, mol_dihedral,
 def write_lammps_data3(atom_list, bond_list, angle_list, improper_list,
                       dihedral_list, mass_index, type_index, type_list, \
                       bond_types, angle_types, improper_types, dihedral_types,\
-                      lx, ly, lz, charge_flg, title, header):
+                      lx, ly, lz, charge_flg, title, header,s):
     "Writes configuration in LAMMPS file format"
 
     lammps_out = open(title+".dat", "w")
@@ -4815,7 +4815,7 @@ def write_lammps_data3(atom_list, bond_list, angle_list, improper_list,
     if dihedral_list: lammps_out.write("%d dihedrals\n"%len(dihedral_list))
     lammps_out.write("0.0 %f xlo xhi\n" % lx)
     lammps_out.write("0.0 %f ylo yhi\n" % ly)
-    lammps_out.write("0.0 %f zlo zhi\n" % lz)
+    lammps_out.write("%f %f zlo zhi\n" % ((s/2), lz+(s/2)))
     lammps_out.write("%d atom types\n" % len(type_list))
 
     if bond_list:
@@ -5024,4 +5024,10 @@ def shift_z(atom_list, lz):
         if a.z > lz:
             a.z -= lz
                   
+    return atom_list
+
+def create_slit(atom_list, delz, lz):
+    for a in atom_list:
+        if a.z <= delz/2:
+            a.z += lz
     return atom_list

@@ -38,7 +38,7 @@ parser.add_argument("-delx", "--delx", type=float, \
 parser.add_argument("-pe", "--probe", type=float, \
                     help="Probability of functionalisation of edge", default=0.5)
 parser.add_argument("-f", "--f", type=str, \
-                    help="Type of edge functionalisation", default='CH_only')
+                    help="Type of edge functionalisation", default='none')
 parser.add_argument("-mol", "--molecule", type=str, \
                     help="Molecule or atom filling the box", default='spce')
 
@@ -73,6 +73,12 @@ a = 1.42            # Spacing between carbon atoms (Angstrom)
 ## Dictionaries
 
 # Just test for functionalisation 'CH' and 'CH_only'
+
+if func == 'none':
+    mass_index = {1:16.00, 2:1.00, 3:12.01}
+    
+    # Dictionary of types
+    type_index = {'O':1, 'H':2, 'C':3}
 
 
 if func == 'CH' or func == 'CH_only':
@@ -183,7 +189,7 @@ if MOL == 'spce':
                        = spce_molecule(type_list, bond_types, angle_types)
 
 	write_lammps_molecule(spce, spce_bond, spce_angle, [], [], 
-                      type_index, mass_index, "%s/SPCE"%func, "spce molecule")
+                      type_index, mass_index, "SPCE", "spce molecule")
 
 elif MOL == 'He':		
 	helium, type_list, helium_bond, helium_angle \
@@ -197,12 +203,12 @@ bond_list, bond_types = add_bonds_nn(atom_list, bond_list, bond_types,
 ## Add functional groups to edges
 y_dist = 2.0*a2/3.0
 
-atom_list, bond_list, angle_list, improper_list, dihedral_list, mol_count, \
-bond_types, angle_types, improper_types, dihedral_types, type_list = \
-functionalise_edge3(atom_list, bond_list, angle_list, improper_list, \
-                    dihedral_list, mol_count, bond_types, angle_types, \
-                    improper_types, dihedral_types, type_list, \
-                    a, pe, Lx, Ly, 'y', '%s'%(func), y_dist)
+#atom_list, bond_list, angle_list, improper_list, dihedral_list, mol_count, \
+#bond_types, angle_types, improper_types, dihedral_types, type_list = \
+#functionalise_edge3(atom_list, bond_list, angle_list, improper_list, \
+                    # dihedral_list, mol_count, bond_types, angle_types, \
+                    # improper_types, dihedral_types, type_list, \
+                    # a, pe, Lx, Ly, 'y', '%s'%(func), y_dist)
 
 
 
@@ -210,7 +216,7 @@ print "lx = %f" % Lx
 
 atom_list = apply_pbc(atom_list, Lx, Ly, Lz)
 
-write_xyz(atom_list, "%s/graphene_sheet_%s_delx%i_n%i_s%0.2f"%(func,func,delx,nsheets,delz), "A graphene sheet with a slit!")
+write_xyz(atom_list, "graphene_sheet", "A graphene sheet with a slit!")
 
 zlo = z_off -delz # place lattice zlo from carbon
 
@@ -227,17 +233,20 @@ r_tol = 1.2 # Tolerance for random insertion
 
 
 if MOL == 'spce':
-	atom_list, bond_list, angle_list, improper_list, dihedral_list,\
-	mol_count, Nm, m = random_insertion_grid(atom_list, bond_list, angle_list,
+
+    atom_list, bond_list, angle_list, improper_list, dihedral_list,\
+    mol_count, Nm, m = random_insertion_grid(atom_list, bond_list, angle_list,
                                          improper_list, dihedral_list,
                                          mol_count, type_index, mass_index,
                                          spce, spce_bond, spce_angle, [], [],
-                                         0.0, Lx, 0.0, Ly, z_off, Lz, rho,
-                                         r_tol, 9, 7, 30)
-
-
-	density = (Nm*m/NA)/(Lx*Ly*Lz*1e-24)
-	print "Water density in cell = %f  g/cm^3" % density
+                                         0.0, Lx, 0.0, Ly, z_off*0.7, Lz*0.98, rho,
+                                         r_tol, 11, 11, 11)
+    
+    print 'test'
+    density = (Nm*m/NA)/(Lx*Ly*Lz*1e-24)
+    print "Water density in cell = %f  g/cm^3" % density
+    density_block = (Nm*m/NA)/(Lx*Ly*(Lz-z_off/2)*1e-24)
+    print "Water density between the sheets = %f  g/cm^3" % density_block
 
 elif MOL == 'He':
 	atom_list, bond_list, angle_list, improper_list, dihedral_list,\
@@ -245,21 +254,24 @@ elif MOL == 'He':
                                          improper_list, dihedral_list,
                                          mol_count, type_index, mass_index,
                                          helium, helium_bond, helium_angle, [], [],
-                                         0.0, Lx, 0.0, Ly, z_off, Lz, rho,
-                                         r_tol, 9, 7, 30)
+                                         0.0, Lx, 0.0, Ly, z_off*0.5, Lz, rho,
+                                         r_tol, 9, 7, 10)
 
 
 	density = (Nm*m/NA)/(Lx*Ly*Lz*1e-24)
 	print "Helium density in cell = %f  g/cm^3" % density
 
-atom_list = shift_z(atom_list, Lz)
+#atom_list = shift_z(atom_list, Lz)
 
-write_xyz(atom_list, "%s/graphene_spce_%s_delx%i_pe%0.2f_p%0.2f_n%i_s%0.2f_%s"%(func,func,DELX, pe, p,nsheets,delz,MOL), "A graphene sheet")
+
+atom_list = create_slit(atom_list, delz, Lz)
+
+write_xyz(atom_list, "graphene_slit_%i_%i_%i_%.2f" % (nx, ny, Lz, rho), "A graphene sheet")
 
 
 write_lammps_data3(atom_list, bond_list, angle_list, improper_list,  
                    dihedral_list, mass_index, type_index, type_list,  
                    bond_types, angle_types, improper_types, dihedral_types, 
                    Lx, Ly, Lz, True,  
-                   "%s/graphene_spce_%s_delx%i_pe%0.2f_p%0.2f_n%i_s%0.2f_%s"%(func,func,DELX, pe,p,nsheets,delz,MOL), "LAMMPS data for Graphene Sheet")
+                   "graphene_slit_%i_%i_%i_%.2f" % (nx, ny, Lz, rho), "LAMMPS data for Graphene Sheet", delz)
 
