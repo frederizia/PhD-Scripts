@@ -14,6 +14,7 @@ import random
 import argparse
 from class_test import atom, bond, angle
 from config_methods import *
+import sys
     
 
 
@@ -41,6 +42,8 @@ parser.add_argument("-f", "--f", type=str, \
                     help="Type of edge functionalisation", default='none')
 parser.add_argument("-mol", "--molecule", type=str, \
                     help="Molecule or atom filling the box", default='spce')
+parser.add_argument("-flag", "--sheetflag", type=str, \
+                    help="If set to y then only do sheets", default='spce')
 
 
 
@@ -49,6 +52,7 @@ extents = args.nxy
 DELX = args.delx
 func = args.f
 MOL = args.molecule
+flag = args.sheetflag
 
 nx = extents[0]
 ny = extents[1]
@@ -218,6 +222,16 @@ atom_list = apply_pbc(atom_list, Lx, Ly, Lz)
 
 write_xyz(atom_list, "graphene_sheet", "A graphene sheet with a slit!")
 
+
+write_lammps_data3(atom_list, bond_list, angle_list, improper_list,  
+                   dihedral_list, mass_index, type_index, type_list,  
+                   bond_types, angle_types, improper_types, dihedral_types, 
+                   Lx, Ly, Lz, True,  
+                   "graphene_sheet_%i_%i_%i_%.2f" % (nx, ny, Lz, rho), "LAMMPS data for Graphene Sheet", delz)
+
+
+
+print 'Exit didn\'t work'
 zlo = z_off -delz # place lattice zlo from carbon
 
 ## Functionalise graphene surface
@@ -240,7 +254,7 @@ if MOL == 'spce':
                                          mol_count, type_index, mass_index,
                                          spce, spce_bond, spce_angle, [], [],
                                          0.0, Lx, 0.0, Ly, z_off*0.7, Lz*0.98, rho,
-                                         r_tol, 11, 11, 11)
+                                         r_tol, 11, 12, 1)
     
     print 'test'
     density = (Nm*m/NA)/(Lx*Ly*Lz*1e-24)
