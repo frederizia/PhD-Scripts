@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 import argparse
 from class_bulk_props import *
+from plotting_params import *
+import sys
 
 def GetArgs():
     parser = argparse.ArgumentParser()
@@ -17,6 +19,7 @@ def GetArgs():
     parser.add_argument('-f', '--fluid', required=False, default='Water', action='store')
     parser.add_argument('-m', '--model', nargs='+', required=False, default='298', action='store')
     parser.add_argument('-e', '--eps', nargs='+', required=False, default='None', action='store')
+    parser.add_argument('-d', '--den', nargs='+', required=False, default=[1,2,3,4,5,6], action='store')
     args = parser.parse_args()
     return args
 
@@ -72,25 +75,33 @@ def main():
     model = args.model
     sep = args.sep
     eps = args.eps
+    den = args.den
 
-    matplotlib.rcParams.update({'font.size': 18})
+    #matplotlib.rcParams.update({'font.size': 18})
     #matplotlib.rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-    matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
-    matplotlib.rc('text', usetex=True)
+    #matplotlib.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
+    #matplotlib.rc('text', usetex=True)
 
     if sep == 'None':
 
         print 'Evaluating', props, 'for', fluid, 'using the', model, 'model at', temp, 'K for pressures', press
         
         # Define plots
-        fig1, ax1 = plt.subplots()
-        fig2, ax2 = plt.subplots()
-        fig3, ax3 = plt.subplots()
-        fig4, ax4 = plt.subplots()
-        fig5, ax5 = plt.subplots()
-        fig6, ax6 = plt.subplots()
+        fig1 = plt.figure(figsize=(9,6))
+        ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
+        fig2 = plt.figure(figsize=(9,6))
+        ax2  = fig2.add_axes([0.1,0.15,0.8,0.75])
+        fig3 = plt.figure(figsize=(9,6))
+        ax3  = fig3.add_axes([0.1,0.15,0.8,0.75])
+        fig4 = plt.figure(figsize=(9,6))
+        ax4  = fig4.add_axes([0.1,0.15,0.8,0.75])
+        fig5 = plt.figure(figsize=(9,6))
+        ax5  = fig5.add_axes([0.1,0.15,0.8,0.75])
+        fig6 = plt.figure(figsize=(9,6))
+        ax6  = fig6.add_axes([0.1,0.15,0.8,0.75])
 
-        markers = ['D', 's', 'v', '^']
+
+        markers = ['D', 's', 'v', '^', 'd', '*']
         legend_names = {'spce':'spce', 'tip4p':'TIP4P/2005', 'TraPPE': 'TraPPE', 'SAFT': 'SAFT Dimer', 'SAFT1': 'SAFT Monomer'}
 
         try:
@@ -120,7 +131,7 @@ def main():
             bulk_dat = []
             diff_dat = []
             for p in press:
-                for i in [1,2,3]:
+                for i in den:
                     try:
                         results = bulk_properties(fluid,m,temp,p,i)
 
@@ -149,6 +160,8 @@ def main():
 
             # Plotting
             ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax1.set_xlabel('P (bar)')
+            ax1.set_ylabel('$\\rho$ (g/cm$^3$)')
             ax1.legend(loc='upper left')
 
             ax2.errorbar(rho_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
@@ -346,4 +359,5 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.path.append('/home/fred/SCRIPTS')
     main()

@@ -274,7 +274,7 @@ class confined_properties:
     def diff(self,tstamp, dt):
         data = self.msd
         idx = list(data[0]).index(tstamp)
-        convert = 10**(-5)
+        convert = 10**(-5) # A2m^2/(2*timestep*ps2s)
 
         delta = []
         diff  = []
