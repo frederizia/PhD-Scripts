@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import argparse
 import sys
+#from plotting_params import *
 '''Script to generate histogram data from Umbrella sampling'''
 
 def GetArgs():
@@ -13,7 +14,7 @@ def GetArgs():
     parser.add_argument("-delx", type=str, nargs=1, \
                         help="Delta x",required=True)
     parser.add_argument("-func", type=str, nargs=1, \
-                        help="CH or COO",required=False, default='COO')
+                        help="CH or COO",required=False, default=['COO'])
     parser.add_argument("-mol", type=str, nargs=1, \
                         help="molecule",required=False, default='200')
     parser.add_argument("-k", type=str, nargs=1, \
@@ -22,24 +23,16 @@ def GetArgs():
                         help="step size",required=True, default='0.2')
     parser.add_argument("-n", type=int, nargs=2, \
                         help="Nmin, Nmax",required=True)
+    parser.add_argument("-run", type=int, nargs=1, \
+                        help="Run number",required=False, default=[3])
     args = parser.parse_args()
     return args
 
 
-def hist_data(fn, func, dx, dz, N, run, corr_flag):
+def hist_data(fn, func, dx, dz, N, run, corr_flag, mol):
     
     N_corr = N*float(dz)
-    timesteps=500000
 
-    #if dx == '5':
-    #    if dz == '1.0' and k_spring == '0.5':
-    #    	timesteps = 3000000
-    #    else:
-    #    	timesteps = 1000000
-    #if dx == '9':
-	#   timesteps = 1000000
-    
-    # read in data
     f = open(fn,'r')
     data = f.read()
 
@@ -87,7 +80,7 @@ def hist_data(fn, func, dx, dz, N, run, corr_flag):
     
     reduced_data_file = np.array([steps, z_data]).transpose()
 
-    np.savetxt('HIST/data_%s_delx%s_N%i_%i'%(func,dx,N,run),reduced_data_file, fmt=['%3i','%.18f'])
+    np.savetxt('HIST/data_%s_delx%s_N%i_mol%s_%i'%(func,dx,N,mol,run),reduced_data_file, fmt=['%3i','%.18f'])
     #np.savetxt('delx%s/data_CH_delx9_N%i_%i_2d'%(dx,N,run),reduced_data_file_2d, fmt=['%3i','%.18f','%.18f'])
 
     return return_val
@@ -100,25 +93,29 @@ def main():
     FUNC = args.func[0]
     MOL = args.mol[0]
     K = args.k[0]
-    DZ = args.dz[0]
+    DZ = float(args.dz[0])
     Nmin = args.n[0]
     Nmax = args.n[1]
+    run = args.run[0]
 
-    run = 3
     corr_flag = 0
 
 	# PLOTTING
 
 
     data = []
-
+    print K
     # Loop over all collected data
-    for i in range(int(Nmin/float(DZ)),int(Nmax/float(DZ))+1):#(50,151):
+    meta_file = open("HIST/metadata_delx%s_run%i_k%s"%(DELX,run, K),'w')
+    meta_file.write("## metadata file\n")
+    for i in range(int(Nmin/DZ),int(Nmax/DZ)+1):#(50,151):
 
         filename = "pmf_positions_%s_delx%s_N%i_%i.xyz" % (FUNC, DELX,i,run)
         try:
-            DATA = hist_data(filename, FUNC, DELX,DZ,i,run, corr_flag)
-
+            DATA = hist_data(filename, FUNC, DELX,DZ,i,run, corr_flag, MOL)
+            meta_file = open("HIST/metadata_delx%s_run%i_k%s"%(DELX,run,K),'a+')
+            z_pos = i*DZ
+            meta_file.write("data_%s_delx%s_N%s_mol%s_%i  %.3f %s\n"%(FUNC, DELX, i, MOL, run, z_pos, K))
             if corr_flag == 0:
 
                 fig = plt.figure()
@@ -129,9 +126,10 @@ def main():
                 #plt.plot(z_bins, z_frames)
                 ax.hist(DATA, 50, facecolor='b', alpha=0.5)
                 plt.xlim(0,100)
-                plt.title('z=%i, run=%i'%(i,run))
+                plt.title('z=%.1f, run=%i'%(z_pos,run))
+                ax.set_xticks([0,10,20,30,40,50,60,70,80,90,100])
 
-                plt.savefig('hist_delx9_N%i_%i.pdf'%(i, run))
+                plt.savefig('hist_delx9_N%i_%i.png'%(i, run))
                 plt.close(fig)
 
             else:
@@ -151,6 +149,7 @@ def main():
         	print filename
         	print 'File does not exist.'
         	continue
+    meta_file.close()
     return
 
 if __name__ == "__main__":

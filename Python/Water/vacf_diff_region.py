@@ -16,6 +16,8 @@ def GetArgs():
                        help='Filename')
     parser.add_argument('-t', '--tsteps', required=False, default=5000, type=int, action='store',
                        help='Number of timesteps')
+    parser.add_argument('-z', '--dz', required=False, type=int, nargs=2, action='store', default=[0,100],
+                       help='zmin and zmax')
     parser.add_argument('-u', '--units', required=False, type=str, action='store', default=[0,100],
                        help='metal or real')
     parser.add_argument('-dt', required=False, type=float, action='store', default=2,
@@ -24,7 +26,7 @@ def GetArgs():
     return args
 
 
-def read_data(fn, timesteps, tc):
+def read_data(fn, zmin,zmax, timesteps, tc):
     print 'Reading in data...'
     filename = fn
     
@@ -55,21 +57,28 @@ def read_data(fn, timesteps, tc):
                     #print 'Reading in timestep', count
                 #if statement for coords
                 if len(data_lines[i].split()) == 8:
+                    zcoord = float(data_lines[i].split()[4])
+                    if zmin < zcoord < zmax:
+                        flag = 0
+                    else:
+                        flag = 1
                     vx = float(data_lines[i].split()[5])*A2m/tc
                     vy = float(data_lines[i].split()[6])*A2m/tc
                     vz = float(data_lines[i].split()[7])*A2m/tc
                     vel = np.array([vx, vy, vz])
                     data_tmp.append(vel)
+                    flag_tmp.append(flag)
             except:
                 continue
 
-    data_list = np.array(data_list)
+    data_list, flag_list = np.array(data_list), np.array(flag_list)
     print 'Read in', count, 'timesteps.'
     data_list = np.ma.array(data_list)
+    data_list[flag_list == 1] = np.ma.masked
 
-    return data_list
+    return data_list, flag_list
 
-def correlation(data, tsteps, dt, unit):
+def correlation(data, flag, tsteps, dt, unit):
     vacf = []
     times_range = int(tsteps/2)
     flag_count = np.zeros((1,data[0].shape[0])) # size of number of atoms
@@ -85,8 +94,12 @@ def correlation(data, tsteps, dt, unit):
             count = 0
             # cycle through atoms
             for k in xrange(data[i].shape[0]):
+                #flag_count[0][k]        += flag[i+j][k]
+                # check if both current and previous timestep was in the zone
+                #if (flag_count_prev[0][k] == 0) and (flag_count[0][k] == 0):
                 C_tmp += np.dot(data[i][k], data[i+j][k])
                 count += 1 # counts number of elegible atoms
+                #flag_count_prev[0][k]   = flag_count[0][k]
             if count == 0:
                 print 'At', (i+j)*dt, unit, 'no atoms were eligible in the desired region.'
                 C_tmp = 0
@@ -97,6 +110,8 @@ def correlation(data, tsteps, dt, unit):
             vacf.append(Cdata)
     vacf = np.array(vacf)
     
+    #mean_vacf = np.apply_along_axis(lambda v: np.mean(v[np.nonzero(v)]), 0, vacf)
+    #mean_vacf[np.isnan(mean_vacf)]=0.
     mean_vacf = np.mean(vacf, axis=0)
     norm_vacf = mean_vacf/mean_vacf[0]
 
@@ -133,7 +148,7 @@ def diffusion(vacf, times,tc,dt):
 
     return diff
 
-def plotting(tdat, cdat, tsteps, u):
+def plotting(tdat, cdat, zmin, zmax, tsteps, u):
     matplotlib.rcParams.update({'font.size': 19})
     matplotlib.rc('text', usetex=True)
 
@@ -154,6 +169,7 @@ def plotting(tdat, cdat, tsteps, u):
 def main():
     args = GetArgs()
     file = args.filename
+    zmin, zmax = args.dz
     tsteps = args.tsteps
     dt = args.dt
     units = args.units
@@ -170,30 +186,31 @@ def main():
 
     print 'The start time is:', datetime.datetime.now()
 
+    print 'Calculate the VACF between', zmin, 'and', zmax, 'Angstrom.'
 
     try:
-        TDAT        = np.loadtxt('vacf_time_%its.dat'%(tsteps))
-        TDAT_SI     = np.loadtxt('vacf_timesi_%its.dat'%(tsteps))
-        CDAT        = np.loadtxt('vacf_corr_%its.dat'%(tsteps))
-        CDAT_norm   = np.loadtxt('vacf_corrnorm_%its.dat'%(tsteps))
+        TDAT        = np.loadtxt('vacf_time_%s_%sA_%its.dat'%(zmin, zmax,tsteps))
+        TDAT_SI     = np.loadtxt('vacf_timesi_%s_%sA_%its.dat'%(zmin, zmax,tsteps))
+        CDAT        = np.loadtxt('vacf_corr_%s_%sA_%its.dat'%(zmin, zmax,tsteps))
+        CDAT_norm   = np.loadtxt('vacf_corrnorm_%s_%sA_%its.dat'%(zmin, zmax,tsteps))
         print 'Data already created and read in from file.'
 
     except IOError:
-        DAT             = read_data(file, tsteps, time_conv)
-        CDAT, CDAT_norm = correlation(DAT, tsteps, dt, unit)
+        DAT, FLAG       = read_data(file, zmin, zmax, tsteps, time_conv)
+        CDAT, CDAT_norm = correlation(DAT, FLAG, tsteps, dt, unit)
         TDAT, TDAT_SI   = time_data(CDAT, time_conv, dt)
 
         # save data
-        np.savetxt('vacf_time_%its.dat'%(tsteps), TDAT, fmt="%s")
-        np.savetxt('vacf_timesi_%its.dat'%(tsteps), TDAT_SI, fmt="%s")
-        np.savetxt('vacf_corr_%its.dat'%(tsteps), CDAT, fmt="%s")
-        np.savetxt('vacf_corrnorm_%its.dat'%(tsteps), CDAT_norm, fmt="%s")
+        np.savetxt('vacf_time_%s_%sA_%its.dat'%(zmin, zmax,tsteps), TDAT, fmt="%s")
+        np.savetxt('vacf_timesi_%s_%sA_%its.dat'%(zmin, zmax,tsteps), TDAT_SI, fmt="%s")
+        np.savetxt('vacf_corr_%s_%sA_%its.dat'%(zmin, zmax,tsteps), CDAT, fmt="%s")
+        np.savetxt('vacf_corrnorm_%s_%sA_%its.dat'%(zmin, zmax,tsteps), CDAT_norm, fmt="%s")
 
     except:
         print 'An error occured.'
 
     diffusion(CDAT, TDAT_SI, time_conv, dt)
-    plotting(TDAT, CDAT_norm, tsteps, units)
+    plotting(TDAT, CDAT_norm, zmin, zmax, tsteps, units)
 
     print 'The end time is:', datetime.datetime.now()
 

@@ -222,21 +222,52 @@ def P17(rho):
 #	D2=6.049
 #	return D1*np.exp(D2*rho)
 
+def u_HP(yvals,delta_P,eta,L,D):
+    u = ((-delta_P)/(2*eta*L))*(D**2-yvals**2)
+    return u
 
 
 def mass_flow(U, RHO):
-        MF = []
-        for i in range(U.shape[1]):
-                URHO = []
-                for j in range(U.shape[0]):
-                        URHO.append(U[j][i]*RHO[j][i])
-                intURHO = si.simps(URHO)
-                MF.append(intURHO)
-        return MF
+    MF = []
+    for i in range(U.shape[1]):
+        URHO = []
+        for j in range(U.shape[0]):
+            URHO.append(U[j][i]*RHO[j][i])
+        intURHO = si.simps(URHO)
+        MF.append(intURHO)
+    return MF
+
+
+def mass_flow_avg(U, RHO, DX):
+    U_avg = np.average(U,axis=1)
+    RHO_avg = np.average(RHO, axis=1)
+    URHO = []
+    for i in range(len(U_avg)):
+        URHO.append(U_avg[i]*RHO_avg[i])
+    intURHO = si.simps(URHO)*DX#, Y)
+    return intURHO
+
+def vol_flow_uavg(U, DX):
+    U_avg = np.average(U,axis=1)
+    intU = si.simps(U_avg)*DX
+    return intU
+
+def vol_flow_uavg_HP(U, DX):
+    intU = si.simps(U)*DX#, Y)
+    return intU
+
+def vol_flow_HP(dP, eta, L, D):
+    Q = (-2/3)*(dP/(eta*L))*D**3
+    return Q
+
+def vol_flow_model(dP, eta, L, D, Ds, WA):
+    Q = (dP/(eta*L))*((-2/3)*D**3+2*(Ds/WA)*eta*L*D)
+    return Q
+
 
 
 def wall_pos(RHO, Y):
-    	lower = 0
+	lower = 0
 	lower_idx = 0
 	RHO = np.average(RHO,axis=1)
    	for i in range(len(RHO)):
@@ -255,7 +286,7 @@ def wall_pos(RHO, Y):
 	y_idx = int(ratio*len(Y))
 	yval = Y[y_idx]
 
-	print rho_idx, rhoval, y_idx, yval
+	#print rho_idx, rhoval, y_idx, yval
 
 	return rho_idx, rhoval, y_idx, yval
 
