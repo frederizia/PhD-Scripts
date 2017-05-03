@@ -1,4 +1,4 @@
 *.sw*
 *.pyc
-.git*
+.gitignore
 Jordan/
