@@ -7,11 +7,14 @@ import itertools
 
 
 
-def read_log(f,m,T,P,idx):
+def read_log(f,m,T,P,idx,rhos):
     '''Code to read in log file'''
 
     try:
-        filename = '%s/log.%s_T%s_P%s_%s'%(f,m,T,P,idx)
+        if f == 'LJ_channel':
+            filename = '%s/log.%s_T%s_z%s_eps%s_rhos%s'%(f,m,T,P, idx, rhos)
+        else:    
+            filename = '%s/log.%s_T%s_P%s_%s'%(f,m,T,P,idx)
         f = open(filename,'r')
     except:
         filename = '%s/log.%s_T%s_z%s_eps%s'%(f,m,T,P,idx)
@@ -23,17 +26,20 @@ def read_log(f,m,T,P,idx):
     DATA = []
     flag=0
     for i in range(len(data_lines)-1):
-        if data_lines[i].split() != [] and data_lines[i].split()[0] == 'unfix' and data_lines[i].split()[1] == 'RESCALE':
+        if data_lines[i].split() != [] and data_lines[i].split()[0] == 'unfix' and (data_lines[i].split()[1] == 'RESCALE' or data_lines[i].split()[1] == 'all_rescale'):
             flag = 1
         if flag == 1 and data_lines[i].split() != []:
             DATA.append(data_lines[i].split())
 
     return DATA
 
-def read_msd(f,m,T,P, idx):
+def read_msd(f,m,T,P, idx, rhos):
     '''Code to read in msd file'''
     try:
-        filename = '%s/msd.%s_T%s_P%s_%s'%(f,m,T,P, idx)
+        if rhos != 'None':
+            filename = '%s/msd.%s_T%s_z%s_eps%s_rhos%s'%(f,m,T,P, idx, rhos)
+        else:    
+            filename = '%s/msd.%s_T%s_P%s_%s'%(f,m,T,P,idx)
         f = open(filename,'r')
     except:
         filename = '%s/msd.%s_T%s_z%s_eps%s'%(f,m,T,P,idx)
@@ -58,10 +64,14 @@ def read_msd(f,m,T,P, idx):
 
     return ts, msd_x, msd_y, msd_z, msd_tot
 
-def read_dens(f,m,T,P, eps):
+def read_dens(f,m,T,P, eps, rhos):
     '''Code to read in density file'''
+
     try:
-        filename = '%s/dens.%s_T%s_P%s'%(f,m,T,P)
+        if rhos != 'None':
+            filename = '%s/dens.%s_T%s_z%s_eps%s_rhos%s'%(f,m,T,P, eps, rhos)
+        else:    
+            filename = '%s/dens.%s_T%s_P%s_%s'%(f,m,T,P,idx)
         f = open(filename,'r')
     except:
         filename = '%s/dens.%s_T%s_z%s_eps%s'%(f,m,T,P,eps)
@@ -72,11 +82,14 @@ def read_dens(f,m,T,P, eps):
     rho = data_lines[-2].split()[1]
     return rho
 
-def read_densprof(f,m,T,P, eps):
+def read_densprof(f,m,T,P, eps, rhos):
     '''Code to read in density  data from a 1d LAMMPS output file'''
 
     try:
-        filename = '%s/densprof.%s_T%s_P%s'%(f,m,T,P)
+        if rhos != 'None':
+            filename = '%s/densprof.%s_T%s_z%s_eps%s_rhos%s'%(f,m,T,P, eps, rhos)
+        else:    
+            filename = '%s/densprof.%s_T%s_P%s_%s'%(f,m,T,P,idx)
         f = open(filename,'r')
     except:
         filename = '%s/densprof.%s_T%s_z%s_eps%s'%(f,m,T,P,eps)
@@ -135,12 +148,6 @@ def read_nist(T,f):
 
 def press_fluct(p):
     filename = 'thermo_p{}.dat'.format(p)
-    #try:
-        #filename = '%s/visc.%s_T%s_P%s_%s'%(f,m,T,P,idx)
-        #f = open(filename,'r')
-    #except:
-        #filename = '%s/visc.%s_T%s_z%s_eps%s'%(f,m,T,P,idx)
-        #f = open(filename,'r')
 
     df = pd.read_csv(filename, delimiter=' ', skiprows=2)
     #read first two lines
@@ -167,6 +174,7 @@ def press_fluct(p):
     vol_var    = np.var(np.array(vol_list))
     temp_mean  = np.mean(np.array(temp_list))
 
+
     return temp_mean, vol_mean, vol_var
 
 def mean_vals(p):
@@ -186,7 +194,7 @@ def mean_vals(p):
     df.columns = cols
     vol  = df['v_vol_one']*1e-30
     vol  = vol.tolist()
-    press = df['v_pre_one']#*1e5
+    press = df['v_pre_one']*1e5
     press = press.tolist()
 
     vol_mean   = np.mean(np.array(vol))
@@ -212,7 +220,10 @@ def fluid_vol(f,m,T,P,eps):
 
     if f == 'Water_Graphene':
         indx, indy = 11, 12
-        blank_idx = 6
+        if m=='spce':
+            blank_idx = 6
+        else:
+            blank_idx = 4
     else:
         indx, indy = 5, 6
         blank_idx = 5
@@ -252,8 +263,8 @@ class bulk_properties:
         self.T = T
         self.P = P
         self.idx = idx
-        self.data = read_log(self.f,self.m,self.T,self.P, self.idx)
-        self.msd = read_msd(self.f,self.m,self.T,self.P, self.idx)
+        self.data = read_log(self.f,self.m,self.T,self.P, self.idx,'None')
+        self.msd = read_msd(self.f,self.m,self.T,self.P, self.idx,'None')
 
     def press(self):
         for i in range(len(self.data)-1):
@@ -307,7 +318,7 @@ class bulk_properties:
 
         shear_list = []
         count = 0
-        if self.m == 'tip4p':
+        if self.m == 'tip4p' or self.m == 'TraPPErigid' or self.m == 'EPM2rigid' or self.m == 'EPM2flex':
             tlim = 4000000
         else:
             tlim = 8000000
@@ -351,7 +362,7 @@ class bulk_properties:
 
         bulk_list = []
         count = 0
-        if self.m == 'tip4p':
+        if self.m == 'tip4p' or self.m == 'TraPPErigid' or self.m == 'EPM2rigid' or self.m == 'EPM2flex':
             tlim = 4000000
         else:
             tlim = 8000000
@@ -370,8 +381,11 @@ class bulk_properties:
 
     def diff(self,tstamp, dt):
         data = self.msd
+        if self.m == 'tip4p' or self.m == 'TraPPErigid' or self.m == 'EPM2rigid' or self.m == 'EPM2flex':
+            tstamp = 2000000
         idx = list(data[0]).index(tstamp)
         convert = 10**(-5)
+
 
         delta = []
         diff  = []
@@ -384,16 +398,17 @@ class bulk_properties:
 
 class confined_properties:
 
-    def __init__(self,f,m,T,z,eps):
+    def __init__(self,f,m,T,z,eps,rhos):
         self.f = f
         self.m = m
         self.T = T
         self.z = z
         self.eps = eps
-        self.data = read_log(self.f,self.m,self.T,self.z, self.eps)
-        self.msd = read_msd(self.f,self.m,self.T,self.z,self.eps)
-        self.dens = read_dens(self.f,self.m,self.T,self.z,self.eps)
-        self.densprof = read_densprof(self.f,self.m,self.T,self.z,self.eps)
+        self.rhos = rhos
+        self.data = read_log(self.f,self.m,self.T,self.z, self.eps, self.rhos)
+        self.msd = read_msd(self.f,self.m,self.T,self.z,self.eps, self.rhos)
+        #self.dens = read_dens(self.f,self.m,self.T,self.z,self.eps, self.rhos)
+        self.densprof = read_densprof(self.f,self.m,self.T,self.z,self.eps, self.rhos)
     def press(self):
         for i in range(len(self.data)-1):
             if self.data[i+1][0] == 'Loop':
@@ -412,7 +427,11 @@ class confined_properties:
         #V, cnt, sep = fluid_vol(self.f,self.m,self.T,self.z)
         #mass = 18.0153/6.0221415e23
         #r = mass*cnt/(V*10**(-24)) # ?/cm^3
-        r = self.dens
+        try:
+            r = read_dens(self.f,self.m,self.T,self.z,self.eps, self.rhos)
+        except:
+            r = np.mean(np.array(self.densprof[1]))
+
         return r
 
     def shear(self):
@@ -442,11 +461,16 @@ class confined_properties:
         return bv
 
     def fric(self, coord):
+        try:
+            filename = '%s/fric.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.z, self.eps)
+            if self.f == 'LJ_channel':
+                filename = '%s/fric.%s_T%s_z%s_eps%s_rhos%s'%(self.f,self.m,self.T,self.z, self.eps, self.rhos)
+            df = pd.read_csv(filename, delimiter=' ', skiprows=2)
+        except:
+            filename = '%s/visc.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.z, self.eps)
+            df = pd.read_csv(filename, delimiter=' ', skiprows=2)
 
-        filename = '%s/fric.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.z, self.eps)
-            #f = open(filename,'r')
-
-        df = pd.read_csv(filename, delimiter=' ', skiprows=2)
+        
         #read first two lines
         with open(filename, 'r') as f:
             _, line2 = f.readline(), f.readline()
@@ -487,12 +511,16 @@ class confined_properties:
         return diff
 
     def separation(self):
-        sep = fluid_vol(self.f,self.m,self.T,self.z, self.eps)[2]
+        #sep2 = fluid_vol(self.f,self.m,self.T,self.z, self.eps)[2]
+        sep = self.wall_pos()
+        
         return sep
 
     def wa(self):
 
         filename = '%s/wa.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.z, self.eps)
+        if self.f == 'LJ_channel':
+            filename = '%s/wa.%s_T%s_z%s_eps%s_rhos%s'%(self.f,self.m,self.T,self.z, self.eps, self.rhos)
             #f = open(filename,'r')
 
         df = pd.read_csv(filename, delimiter=' ', skiprows=2)
@@ -501,7 +529,7 @@ class confined_properties:
             _, line2 = f.readline(), f.readline()
         cols = line2.lstrip('#').strip().split(' ')
         df.columns = cols
-        wa = df['v_WA']
+        wa = df['v_WA_layer']
         wa = wa.tolist()
         time = df['TimeStep']
         time = time.tolist()
@@ -509,8 +537,8 @@ class confined_properties:
         for i in range(len(self.data)-1):
             try:
                 
-                if self.data[i][0] == 'WA' and self.data[i][1] == ':':
-                    wa_tmp = float(self.data[i][2])
+                if self.data[i][0] == 'WA' and self.data[i][1] == 'layer':
+                    wa_tmp = float(self.data[i][3])
             except:
                 continue
         factor = wa[-1]/wa_tmp
@@ -529,3 +557,41 @@ class confined_properties:
     def profile(self):
         z, rho = self.densprof
         return z, rho
+
+    def wall_pos(self):
+        Y, RHO = self.densprof
+        lower = 0
+        lower_idx = 0
+        upper = len(RHO)
+        upper_idx = len(RHO)
+
+        ref = round((np.average(np.array(RHO[:10]))+np.average(np.array(RHO[-10:])))/2,2)
+
+        for i in range(len(RHO)):
+            if round(RHO[i],2) == ref and round(RHO[i+1],2) > ref:
+                lower_idx = i
+            if round(RHO[i],2) > ref and round(RHO[i],2) > round(RHO[i+1],2):
+                lowerpeak_idx = i
+                break
+        print 'Lower peak:', Y[lowerpeak_idx]
+        LOWER = lower_idx+int((lowerpeak_idx-lower_idx)/4)
+        ylower = Y[LOWER]
+        
+        count = 0
+        for j in list(reversed(range(len(RHO)))):
+            if round(RHO[j],2) == ref and round(RHO[j-1],2) > ref:
+                upper_idx = j
+                count +=1
+            if round(RHO[j],2) > ref and round(RHO[j],2) > round(RHO[j-1],2) and count > 0:
+                upperpeak_idx = j
+                break
+
+        print 'Upper peak:', Y[upperpeak_idx]
+        UPPER = upper_idx-int((upper_idx-upperpeak_idx)/4)
+        yupper = Y[UPPER]
+        
+
+        sep = yupper-ylower
+        print 'Separation:', sep
+
+        return sep

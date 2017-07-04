@@ -2,8 +2,9 @@
 
 from __future__ import division
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
 import argparse
 from class_bulk_props import *
 from plotting_params import *
@@ -16,12 +17,19 @@ def GetArgs():
     parser.add_argument('-P', '--press', nargs='+', required=False, default='None', action='store')
     parser.add_argument('-s', '--sep', nargs='+', required=False, default='None', action='store')
     parser.add_argument('-f', '--fluid', required=False, default='Water', action='store')
-    parser.add_argument('-m', '--model', nargs='+', required=False, default='298', action='store')
+    parser.add_argument('-m', '--model', nargs='+', required=False, default='spce', action='store')
     parser.add_argument('-e', '--eps', nargs='+', required=False, default='None', action='store')
+    parser.add_argument('-r', '--rhos', nargs='+', required=False, default='None', action='store')
     parser.add_argument('-d', '--den', nargs='+', required=False, default=[5,6], action='store')
     parser.add_argument('-png', '--png', nargs=1, type=str, required=False, default='n', action='store')
     args = parser.parse_args()
     return args
+
+def poly1(xlist,m,b):
+    result = []
+    for x in xlist:
+        result.append(m*x+b)
+    return result
 
 def averaging2(k,v):
     averages = {}
@@ -99,7 +107,9 @@ def main():
     sep = args.sep
     eps = args.eps
     den = args.den
+    rhos = args.rhos[0]
     png = args.png[0]
+    fig_size = (9,7)
 
 
     if sep == 'None':
@@ -107,28 +117,39 @@ def main():
         print 'Evaluating properties for', fluid, 'using the', model, 'model at', temp, 'K for pressures', press
         
         # Define plots
-        fig1 = plt.figure(figsize=(9,6))
+        fig1 = plt.figure(figsize=fig_size)
         ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
-        fig2 = plt.figure(figsize=(9,6))
+        fig2 = plt.figure(figsize=fig_size)
         ax2  = fig2.add_axes([0.1,0.15,0.8,0.75])
-        fig3 = plt.figure(figsize=(9,6))
+        fig3 = plt.figure(figsize=fig_size)
         ax3  = fig3.add_axes([0.1,0.15,0.8,0.75])
-        fig4 = plt.figure(figsize=(9,6))
+        fig4 = plt.figure(figsize=fig_size)
         ax4  = fig4.add_axes([0.1,0.15,0.8,0.75])
-        fig5 = plt.figure(figsize=(9,6))
+        fig5 = plt.figure(figsize=fig_size)
         ax5  = fig5.add_axes([0.1,0.15,0.8,0.75])
-        fig6 = plt.figure(figsize=(9,6))
+        fig6 = plt.figure(figsize=fig_size)
         ax6  = fig6.add_axes([0.1,0.15,0.8,0.75])
-        fig7 = plt.figure(figsize=(9,6))
+        fig7 = plt.figure(figsize=fig_size)
         ax7  = fig7.add_axes([0.1,0.15,0.8,0.75])
-        fig8 = plt.figure(figsize=(9,6))
+        fig8 = plt.figure(figsize=fig_size)
         ax8  = fig8.add_axes([0.1,0.15,0.8,0.75])
 
-
+        if fluid == 'CO2':
+            saft_term = 'Dimer'
+        elif fluid== 'Decane':
+            saft_term = 'three-bead'
+        else:
+            saft_term = ''
         markers = ['D', 's', 'v', '^', 'd', '*']
-        legend_names = {'spce':'SPC/E', 'tip4p':'TIP4P/2005', 'TraPPE': 'TraPPE', 'SAFT': 'SAFT Dimer', \
+        legend_names = {'spce':'SPC/E', 'tip4p':'TIP4P/2005', 'TraPPE': 'TraPPE', 'SAFT': 'SAFT %s'%saft_term, \
         'SAFT1': 'SAFT Monomer', 'TraPPEnc': 'TraPPE (no charges)', 'OPLS': 'OPLS',\
-        'SAFT1_rc2.5': 'SAFT (rc=2.5)', '12_6':'12-6 model', '12_6_rcsaft': '12-6 model (rc from SAFT)'}
+        'SAFT1_rc2.5': 'SAFT (rc=2.5)', '12_6':'12-6 model', '12_6_rcsaft': '12-6 model (rc from SAFT)',\
+        '12_6_23_666': '12-6 model (SAFT exponents)',
+        'SAFTflex': 'SAFT Dimer (flexible II)', 'EPM2':'EPM2', 'SAFTrigid': 'SAFT (rigid)',\
+        'SAFT1vle': 'SAFT-vle', 'SAFT1ift': 'SAFT-ift', 'SAFTflex2': 'SAFT Dimer (flexible)',\
+        'OPLSmod': 'L-OPLS', 'TraPPEflex': 'TraPPE (flexible)',\
+        'EPM2rigid': 'EPM2', 'EPM2flex': 'EPM2 (flexible)', 'TraPPErigid': 'TraPPE',\
+        'EPM2nc': 'EPM2 (no charges)', 'spcenc': 'SPC/E (no charges)'}
 
         try:
             NIST = read_nist(temp, fluid)
@@ -189,9 +210,18 @@ def main():
             rho_dat, ratio_dat, ratio_err   = averaging(rho_dat_init, ratio_dat)
             rho_dat, diff_dat, diff_err     = averaging(rho_dat_init, diff_dat)
             
+            print 'Diffusion for %s' % m,'at P=1bar:', diff_dat[0], '+/-', diff_err[0]
+            print 'Shear viscosity for %s' % m,'at P=1bar:', shear_dat[0], '+/-', shear_err[0]
+            print 'Bulk viscosity for %s' % m,'at P=1bar:', bulk_dat[0], '+/-', bulk_err[0]
+            print 'Viscosity ratio for %s' % m,'at P=1bar:', ratio_dat[0], '+/-', ratio_err[0]
+            print 'Final viscosity ratio for %s' % m, ratio_dat[-1], '+/-', ratio_err[-1]
+            print ratio_dat, ratio_err
+            print "-------------------------------"
 
-            print 'Diffusion for %s' % m, np.mean(diff_dat)
-
+            print 'Average diffusion for %s' % m, np.mean(diff_dat), '+/-', np.std(np.array(diff_dat))/np.sqrt(len(diff_dat))
+            print 'Average shear viscosity for %s' % m, np.mean(shear_dat), '+/-', np.std(np.array(shear_dat))/np.sqrt(len(shear_dat))
+            print 'Average bulk viscosity for %s' % m, np.mean(bulk_dat), '+/-', np.std(np.array(bulk_dat))/np.sqrt(len(bulk_dat))
+            print 'Average viscosity ratio for %s' % m, np.mean(ratio_dat), '+/-', np.std(np.array(ratio_dat))/np.sqrt(len(ratio_dat))
 
             # Plotting
             ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
@@ -207,6 +237,14 @@ def main():
             ax3.errorbar(rho_dat, bulk_dat, yerr=bulk_err,linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
             ax3.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax3.set_ylabel('$\kappa$ (mPa.s)')
+            #if fluid == 'CO2' and 'TraPPE' in model:
+                #ax3.set_yscale("log", nonposy='clip')
+                #ax3.set_ylim(ymin=0.1)
+                #ax3.set_xlim(0.78,1.1)
+                #ax3_inset=fig3.add_axes([0.67,0.3, 0.2,0.2])
+                #ax3_inset.plot(rho_dat, bulk_dat, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+                #ax3_inset.set_xlim(0,0.35)
+                #ax3_inset.set_ylim(0,1)
             ax3.legend()
 
             ax4.errorbar(rho_dat, diff_dat, yerr=diff_err,linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
@@ -262,38 +300,49 @@ def main():
 
 
     elif press == 'None':
+        if fluid=='Water_Graphene':
+            extra_plot_name = 'Graph'
+            fric_coords = ['x','y']
+        elif fluid=='LJ_channel':
+            extra_plot_name = 'LJ'
+            fric_coords = ['x','z']
+        else:
+            print 'Unknown channel.'
+            sys.exit(1)
 
         print 'Evaluating properties for', fluid, 'using the', model, 'model at', temp, 'K for separations', sep
         
         # Define plots
-        fig1  = plt.figure(figsize=(9,6))
+        fig1  = plt.figure(figsize=fig_size)
         ax1   = fig1.add_axes([0.15,0.15,0.75,0.75])
-        fig2  = plt.figure(figsize=(9,6))
+        fig2  = plt.figure(figsize=fig_size)
         ax2   = fig2.add_axes([0.15,0.15,0.75,0.75])
-        fig3  = plt.figure(figsize=(9,6))
+        fig3  = plt.figure(figsize=fig_size)
         ax3   = fig3.add_axes([0.15,0.15,0.75,0.75])
-        fig4  = plt.figure(figsize=(9,6))
+        fig4  = plt.figure(figsize=fig_size)
         ax4   = fig4.add_axes([0.15,0.15,0.75,0.75])
-        fig5  = plt.figure(figsize=(9,6))
+        fig5  = plt.figure(figsize=fig_size)
         ax5   = fig5.add_axes([0.15,0.15,0.75,0.75])
-        fig6  = plt.figure(figsize=(9,6))
+        fig6  = plt.figure(figsize=fig_size)
         ax6   = fig6.add_axes([0.15,0.15,0.75,0.75])
-        fig7  = plt.figure(figsize=(9,6))
+        fig7  = plt.figure(figsize=fig_size)
         ax7   = fig7.add_axes([0.15,0.15,0.75,0.75])
-        fig8  = plt.figure(figsize=(9,6))
+        fig8  = plt.figure(figsize=fig_size)
         ax8   = fig8.add_axes([0.15,0.15,0.75,0.75])
-        fig9  = plt.figure(figsize=(9,6))
+        fig9  = plt.figure(figsize=fig_size)
         ax9   = fig9.add_axes([0.15,0.15,0.75,0.75])
-        fig10 = plt.figure(figsize=(9,6))
+        fig10 = plt.figure(figsize=fig_size)
         ax10  = fig10.add_axes([0.15,0.15,0.75,0.75])
-        fig11 = plt.figure(figsize=(9,6))
+        fig11 = plt.figure(figsize=fig_size)
         ax11  = fig11.add_axes([0.15,0.15,0.75,0.75])
-        fig12 = plt.figure(figsize=(9,6))
+        fig12 = plt.figure(figsize=fig_size)
         ax12  = fig12.add_axes([0.15,0.15,0.75,0.75])
-        fig13 = plt.figure(figsize=(9,6))
+        fig13 = plt.figure(figsize=fig_size)
         ax13  = fig13.add_axes([0.15,0.15,0.75,0.75])
-        fig14 = plt.figure(figsize=(9,6))
+        fig14 = plt.figure(figsize=fig_size)
         ax14  = fig14.add_axes([0.15,0.15,0.75,0.75])
+        fig15 = plt.figure(figsize=fig_size)
+        ax15  = fig15.add_axes([0.15,0.15,0.75,0.75])
 
         markers = ['D', 's', 'v', '^']
 
@@ -313,6 +362,7 @@ def main():
         count = 0
         name_plot = ''
         for m in model:
+            name_plot += m
             sep_dat = []
             temp_dat =[]
             rho_dat = []
@@ -325,6 +375,7 @@ def main():
             fric1_dat = []
             fric2_dat = []
             for e in eps:
+                print '\n\n++++++++++++++++++++++++ eps = %s +++++++++++++++++++++\n' %e
                 name_plot += e
                 sep_dat = []
                 temp_dat =[]
@@ -338,11 +389,14 @@ def main():
                 fric_dat = []
                 fric1_dat = []
                 fric2_dat = []
+                fricinv_dat = []
+                fw_dat = []
                 name_plot2 = name_plot
                 for s in sep:
+                    print '\nSeparation = ', s
                     try:
                         name_plot2 += '_%s'% s
-                        results = confined_properties(fluid,m,temp,s, e)
+                        results = confined_properties(fluid,m,temp,s, e, rhos)
                         timestamp = 800000
                         deltat = 600000
                         
@@ -354,12 +408,14 @@ def main():
                         ratio_dat.append(results.visc_ratio())
                         diff_dat.append(results.diff(timestamp,deltat)[-1])
                         wa_dat.append(results.wa())
-                        f1 = results.fric('x')
-                        f2 = results.fric('y')
+                        f1 = results.fric(fric_coords[0])
+                        f2 = results.fric(fric_coords[1])
                         fric1_dat.append(f1)
                         fric2_dat.append(f2)
                         fric_dat.append((f1+f2)/2)
+                        fricinv_dat.append(2/(f1+f2))
                         zcoord, densprof = results.profile()
+                        fw_dat.append((results.wa()*results.separation())/(2*results.diff(timestamp,deltat)[-1]))
 
                         ax14.plot(zcoord, densprof, label='$\epsilon$ = %s, $\Delta z$ =%s\AA'%(e,s))
                         ax14.set_xlabel('z (\AA)')
@@ -367,94 +423,120 @@ def main():
                         ax14.legend()
                         #shear2_dat.append(results.shear2(float(temp),timestamp,deltat))
                     except:
-                        print 'There was an error. Maybe no data for %s and s=%s exists for %s.'%(m,s,e)
+                        print 'There was an error. Maybe no data for %s and s=%s exists for eps=%s.'%(m,s,e)
+
+
+
+
 
                 #print sep_dat, rho_dat, wa_dat, temp_dat
+                legend_names = {'spce':'SPC/E', 'tip4p':'TIP4P/2005', 'TraPPE': 'TraPPE', 'SAFT': 'SAFT Dimer', \
+                    'SAFT1': 'SAFT Monomer', 'TraPPEnc': 'TraPPE (no charges)', 'OPLS': 'OPLS',\
+                    'SAFT1_rc2.5': 'SAFT (rc=2.5)', '12_6':'12-6 model', '12_6_rcsaft': '12-6 model (rc from SAFT)',\
+                    '12_6_23_666': '12-6 model (SAFT exponents)', 'lj':'LJ'}
+                legend_name = '$\epsilon$ = %s (%s)'%(e,legend_names[m])
                 # Plotting
-                ax1.plot(sep_dat, rho_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax1.plot(sep_dat, rho_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax1.legend()
 
-                ax2.plot(sep_dat, shear_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax2.plot(sep_dat, shear_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 #ax2.plot(sep_dat, shear2_dat, linestyle = 'None', marker=markers[count], c='g', label='%s'%(m))
                 ax2.set_xlabel('$\Delta z$ (\AA)')
                 #ax2.set_xlim(0,18)
                 ax2.set_ylabel('$\eta$ (mPa.s)')
                 ax2.legend(loc='upper right')
 
-                ax3.plot(sep_dat, bulk_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax3.plot(sep_dat, bulk_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax3.set_xlabel('$\Delta z$ (\AA)')
                 ax3.set_ylabel('$\kappa$ (mPa.s)')
                 ax3.legend(loc='upper left')
 
-                ax4.plot(sep_dat, diff_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax4.plot(sep_dat, diff_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 #ax4.set_xlim(0,18)
                 ax4.set_xlabel('$\Delta z$ (\AA)')
                 ax4.set_ylabel('$D_s$ ($10^{-9}m^2/s$)')
                 ax4.legend(loc='upper left')
 
-                ax5.plot(rho_dat, shear_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax5.plot(rho_dat, shear_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax5.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax5.set_ylabel('$\eta$ (mPa.s)')
                 ax5.legend(loc='upper left')
 
-                ax6.plot(rho_dat, bulk_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax6.plot(rho_dat, bulk_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax6.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax6.set_ylabel('$\kappa$ (mPa.s)')
                 ax6.legend(loc='upper left')
 
-                ax7.plot(rho_dat, diff_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax7.plot(rho_dat, diff_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 #ax7.set_ylim(0,100)
                 ax7.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax7.set_ylabel('$D_s$ ($10^{-9}m^2/s$)')
                 ax7.legend()
 
-                ax8.plot(sep_dat, ratio_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax8.plot(sep_dat, ratio_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax8.set_xlabel('$\Delta z$ (\AA)')
                 ax8.set_ylabel('$\kappa$/$\eta$')
                 ax8.legend(loc='upper left')
 
-                ax9.plot(rho_dat, ratio_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax9.plot(rho_dat, ratio_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax9.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax9.set_ylabel('$\kappa$/$\eta$')
                 ax9.legend(loc='upper left')
 
-                ax10.plot(sep_dat, wa_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax10.plot(sep_dat, wa_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax10.set_xlabel('$\Delta z$ (\AA)')
-                ax10.set_ylabel('$W_A$ ($10^{-3}$ N/m)')
+                ax10.set_ylabel('$W_A$ (N/m)')
                 ax10.legend()
 
-                ax11.plot(rho_dat, wa_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax11.plot(rho_dat, wa_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax11.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax11.set_ylabel('$W_A$ ($10^{-3}$ N/m)')
                 ax11.legend()
 
-                ax12.plot(sep_dat, fric_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax12.plot(sep_dat, fric_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax12.set_xlabel('$\Delta z$ (\AA)')
-                ax12.set_ylabel('$\lambda$ ($10^4$ Ns)')
+                ax12.set_ylabel('$\lambda$ ($10^4$ Ns/m$^3$)')
                 ax12.legend()
 
-                ax13.plot(rho_dat, fric_dat, linestyle = 'None', marker=markers[count], label='$\epsilon$ = %s'%(e))
+                ax13.plot(rho_dat, fric_dat, linestyle = 'None', marker=markers[count], label=legend_name)
                 ax13.set_xlabel('$\\rho$ (g/cm$^3$)')
-                ax13.set_ylabel('$\lambda$ ($10^4$ Ns)')
+                ax13.set_ylabel('$\lambda$ ($10^4$ Ns/m$^3$)')
                 ax13.legend()
+
+                ax15.plot(fw_dat, fric_dat, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax15.set_xlabel('$W_A$D/$D_s$')
+                ax15.set_ylabel('$\lambda$ ($10^4$ Ns/m$^3$)')
+                ax15.legend()
 
                 count +=1
 
+                # Calculate predicted channel length
+                slope, b = np.polyfit(np.array(fw_dat), np.array(fric_dat),1)
+                xlength = 1/(slope*1e-5)
+                print 'The channel has a predicted length of ', xlength,'A.'
+                max_val = np.max(np.array(fw_dat))
+                min_val = np.min(np.array(fw_dat))
+                xdat = np.linspace(min_val, max_val, 100)
+                fit_data = poly1(xdat, slope, b)
+                ax15.plot(xdat, fit_data, linestyle = 'dashed' , c='k')
 
-        fig1.savefig('PLOTS/Graph_S_rho_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig2.savefig('PLOTS/Graph_SV_s_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig3.savefig('PLOTS/Graph_BV_s_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig4.savefig('PLOTS/Graph_Ds_s_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig5.savefig('PLOTS/Graph_SV_rho_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig6.savefig('PLOTS/Graph_BV_rho_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig7.savefig('PLOTS/Graph_Ds_rho_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig8.savefig('PLOTS/Graph_BS_s_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig9.savefig('PLOTS/Graph_BS_rho_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig10.savefig('PLOTS/Graph_WA_s_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig11.savefig('PLOTS/Graph_WA_rho_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig12.savefig('PLOTS/Graph_fric_s_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig13.savefig('PLOTS/Graph_fric_rho_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-        fig14.savefig('PLOTS/Graph_prof_%s_T%s_%s.pdf'%(fluid, temp,name_plot2))
+
+
+        fig1.savefig('PLOTS/%s_S_rho_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig2.savefig('PLOTS/%s_SV_s_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig3.savefig('PLOTS/%s_BV_s_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig4.savefig('PLOTS/%s_Ds_s_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig5.savefig('PLOTS/%s_SV_rho_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig6.savefig('PLOTS/%s_BV_rho_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig7.savefig('PLOTS/%s_Ds_rho_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig8.savefig('PLOTS/%s_BS_s_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig9.savefig('PLOTS/%s_BS_rho_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig10.savefig('PLOTS/%s_WA_s_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig11.savefig('PLOTS/%s_WA_rho_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig12.savefig('PLOTS/%s_fric_s_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig13.savefig('PLOTS/%s_fric_rho_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot))
+        fig14.savefig('PLOTS/%s_prof_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot2))
+        fig15.savefig('PLOTS/%s_fw_%s_T%s_%s.pdf'%(extra_plot_name,fluid, temp,name_plot2))
 
 
     return

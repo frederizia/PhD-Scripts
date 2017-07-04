@@ -2,8 +2,8 @@
 import matplotlib as mpl
 from cycler import cycler
 
-mpl.rc('lines', linewidth=2, markersize=8)
-mpl.rc('font', size=20, **{'family': 'serif', 'serif': ['Computer Modern']})
+mpl.rc('lines', linewidth=2, markersize=8, markeredgewidth=1.0)
+mpl.rc('font', size=22, **{'family': 'serif', 'serif': ['Computer Modern']})
 mpl.rc('text', usetex=True)
 mpl.rc('legend', framealpha=None)
 mpl.rc('errorbar', capsize=4)

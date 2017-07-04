@@ -35,7 +35,7 @@ def main():
         for p in press:
             print '+++++++++++++++++ p = {} ++++++++++++++++++'.format(p)
             T, V, varV = press_fluct(p)
-            comp = varV/(kB*T*V)
+            comp = 1e5*varV/(kB*T*V)
 
             print 'The compressibility is:', comp
             print 'The bulk modulus is:', (1/comp)/1e9, 'GPa'
