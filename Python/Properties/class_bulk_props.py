@@ -17,7 +17,7 @@ def read_log(f,m,T,P,idx,rhos):
             filename = '%s/log.%s_T%s_P%s_%s'%(f,m,T,P,idx)
         f = open(filename,'r')
     except:
-        filename = '%s/log.%s_T%s_z%s_eps%s'%(f,m,T,P,idx)
+        filename = '%s/log.%s_T%s_z%s_eps%s_%s'%(f,m,T,P,idx,rhos)
         f = open(filename,'r')
 
     data = f.read()
@@ -42,7 +42,7 @@ def read_msd(f,m,T,P, idx, rhos):
             filename = '%s/msd.%s_T%s_P%s_%s'%(f,m,T,P,idx)
         f = open(filename,'r')
     except:
-        filename = '%s/msd.%s_T%s_z%s_eps%s'%(f,m,T,P,idx)
+        filename = '%s/msd.%s_T%s_z%s_eps%s_%s'%(f,m,T,P,idx,rhos)
         f = open(filename,'r')
     data = f.read()
     data_lines = data.split('\n')
@@ -74,7 +74,7 @@ def read_dens(f,m,T,P, eps, rhos):
             filename = '%s/dens.%s_T%s_P%s_%s'%(f,m,T,P,idx)
         f = open(filename,'r')
     except:
-        filename = '%s/dens.%s_T%s_z%s_eps%s'%(f,m,T,P,eps)
+        filename = '%s/dens.%s_T%s_z%s_eps%s_%s'%(f,m,T,P,eps,rhos)
         f = open(filename,'r')
     data = f.read()
     data_lines = data.split('\n')
@@ -92,7 +92,7 @@ def read_densprof(f,m,T,P, eps, rhos):
             filename = '%s/densprof.%s_T%s_P%s_%s'%(f,m,T,P,idx)
         f = open(filename,'r')
     except:
-        filename = '%s/densprof.%s_T%s_z%s_eps%s'%(f,m,T,P,eps)
+        filename = '%s/densprof.%s_T%s_z%s_eps%s_%s'%(f,m,T,P,eps,rhos)
         f = open(filename,'r')
 
 
@@ -202,10 +202,10 @@ def mean_vals(p):
 
     return vol_mean, press_mean
 
-def fluid_vol(f,m,T,P,eps):
+def fluid_vol(f,m,T,P,eps,rhos):
     '''Code to read in msd file'''
     try:
-        filename = '%s/data.%s_T%s_z%s_eps%s'%(f,m,T,P,eps)
+        filename = '%s/data.%s_T%s_z%s_eps%s_%s'%(f,m,T,P,eps,rhos)
         file = open(filename,'r')
     except:
         filename = '%s/data.%s_T%s_P%s'%(f,m,T,P)
@@ -302,7 +302,7 @@ class bulk_properties:
             filename = '%s/visc.%s_T%s_P%s_%s'%(self.f,self.m,self.T,self.P, self.idx)
             #f = open(filename,'r')
         except:
-            filename = '%s/visc.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.P,self.idx)
+            filename = '%s/visc.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.z,self.idx)
             #f = open(filename,'r')
 
         df = pd.read_csv(filename, delimiter=' ', skiprows=2)
@@ -346,7 +346,7 @@ class bulk_properties:
             filename = '%s/visc.%s_T%s_P%s_%s'%(self.f,self.m,self.T,self.P, self.idx)
             #f = open(filename,'r')
         except:
-            filename = '%s/visc.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.P,self.idx)
+            filename = '%s/visc.%s_T%s_z%s_eps%s_%s'%(self.f,self.m,self.T,self.P,self.idx)
             #f = open(filename,'r')
 
         df = pd.read_csv(filename, delimiter=' ', skiprows=2)
@@ -374,6 +374,7 @@ class bulk_properties:
         bulk_err = np.std(np.array(bulk_list))/np.sqrt(len(bulk_list))
 
         return bulk_val, bulk_err
+
 
     def visc_ratio(self):
         ratio = self.bulk()/self.shear()
@@ -412,14 +413,14 @@ class confined_properties:
     def press(self):
         for i in range(len(self.data)-1):
             if self.data[i+1][0] == 'Loop':
-                P = self.data[i][7]
+                P = float(self.data[i][7])
 
         return P
 
     def temp(self):
         for i in range(len(self.data)-1):
             if self.data[i+1][0] == 'Loop':
-                T = self.data[i][5]
+                T = float(self.data[i][5])
 
         return T
 
@@ -443,7 +444,7 @@ class confined_properties:
                 continue
         return sv
 
-    def shear2(self, T, tstamp, dt):
+    def shear3(self, T, tstamp, dt):
         Ds = self.diff(tstamp, dt)[2]/1e9
         alpha = 1.7*10**(-10)
         kB = 1.38*10**(-23)
@@ -451,7 +452,41 @@ class confined_properties:
 
         return sv
 
+    def shear2(self):
+        try:
+            filename = '%s/visc.%s_T%s_P%s_%s'%(self.f,self.m,self.T,self.P, self.idx)
+            #f = open(filename,'r')
+        except:
+            filename = '%s/visc.%s_T%s_z%s_eps%s_%s'%(self.f,self.m,self.T,self.z,self.eps, self.rhos)
+            #f = open(filename,'r')
+
+        df = pd.read_csv(filename, delimiter=' ', skiprows=2)
+        #read first two lines
+        with open(filename, 'r') as f:
+            _, line2 = f.readline(), f.readline()
+        cols = line2.lstrip('#').strip().split(' ')
+        df.columns = cols
+        shear = df['v_etas']/1000
+        shear = shear.tolist()
+        time = df['TimeStep']
+        time = time.tolist()
+
+        shear_list = []
+        count = 0
+        tlim = 10000000
+        for t,s in itertools.izip(time, shear):
+            if t > tlim:
+                shear_list.append(1e6*s)
+                count += 1
+        shear_val = np.mean(np.array(shear_list))
+        shear_val *= (float(self.z)-1.0)/(float(self.z)+1.5)
+        shear_err = np.std(np.array(shear_list))/np.sqrt(len(shear_list))
+
+        return shear_val, shear_err
+    
+
     def bulk(self):
+        bv = 0
         for i in range(len(self.data)-1):
             try:
                 if self.data[i][1] == 'bulk' and self.data[i][2] == 'nvt' and self.data[i][3] == 'viscosity':
@@ -460,9 +495,42 @@ class confined_properties:
                 continue
         return bv
 
+    def bulk2(self):
+        try:
+            filename = '%s/visc.%s_T%s_P%s_%s'%(self.f,self.m,self.T,self.P, self.idx)
+            #f = open(filename,'r')
+        except:
+            filename = '%s/visc.%s_T%s_z%s_eps%s_%s'%(self.f,self.m,self.T,self.z,self.eps, self.rhos)
+            #f = open(filename,'r')
+
+        df = pd.read_csv(filename, delimiter=' ', skiprows=2)
+        #read first two lines
+        with open(filename, 'r') as f:
+            _, line2 = f.readline(), f.readline()
+        cols = line2.lstrip('#').strip().split(' ')
+        df.columns = cols
+        bulk = df['v_etab_nvt']/1000
+        bulk = bulk.tolist()
+        time = df['TimeStep']
+        time = time.tolist()
+
+        bulk_list = []
+        count = 0
+        tlim = 10000000
+        for t,s in itertools.izip(time, bulk):
+            if t > tlim:
+                bulk_list.append(1e6*s)
+                count += 1
+        bulk_val = np.mean(np.array(bulk_list))
+        bulk_val *= (float(self.z)+1.5)/(float(self.z)-1.0)
+        bulk_err = np.std(np.array(bulk_list))/np.sqrt(len(bulk_list))
+
+        return bulk_val, bulk_err
+
+
     def fric(self, coord):
         try:
-            filename = '%s/fric.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.z, self.eps)
+            filename = '%s/fric.%s_T%s_z%s_eps%s_%s'%(self.f,self.m,self.T,self.z, self.eps, self.rhos)
             if self.f == 'LJ_channel':
                 filename = '%s/fric.%s_T%s_z%s_eps%s_rhos%s'%(self.f,self.m,self.T,self.z, self.eps, self.rhos)
             df = pd.read_csv(filename, delimiter=' ', skiprows=2)
@@ -518,7 +586,7 @@ class confined_properties:
 
     def wa(self):
 
-        filename = '%s/wa.%s_T%s_z%s_eps%s'%(self.f,self.m,self.T,self.z, self.eps)
+        filename = '%s/wa.%s_T%s_z%s_eps%s_%s'%(self.f,self.m,self.T,self.z, self.eps, self.rhos)
         if self.f == 'LJ_channel':
             filename = '%s/wa.%s_T%s_z%s_eps%s_rhos%s'%(self.f,self.m,self.T,self.z, self.eps, self.rhos)
             #f = open(filename,'r')

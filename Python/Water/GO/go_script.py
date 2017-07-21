@@ -8,9 +8,10 @@ import argparse
 from go_tools import *
 import sys
 
+
 def GetArgs():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--sheets', required=False, default='1', action='store',
+    parser.add_argument('-n', '--sheets', nargs='+', required=False, default='1', action='store',
                        help='Number of sheets')
     parser.add_argument('-dx', '--delx', nargs='+', required=False, default='None', action='store')
     parser.add_argument('-o', '--off', nargs='+', required=False, default='None', action='store')
@@ -21,9 +22,9 @@ def GetArgs():
 
 def main():
     args    = GetArgs()
-    sheets  = args.sheets[0]
+    sheets  = args.sheets
     delx    = args.delx
-    offset  = args.off[0]
+    offset  = args.off
     force   = args.force
     png     = args.png[0]
 
@@ -43,103 +44,206 @@ def main():
     ax4  = fig4.add_axes([0.15,0.15,0.75,0.75])
     fig6 = plt.figure(figsize=fig_size_sq)
     ax6  = fig6.add_axes([0.15,0.15,0.75,0.75])
+    fig7 = plt.figure(figsize=fig_size_sq)
+    ax7  = fig7.add_axes([0.15,0.15,0.75,0.75])
+    fig8 = plt.figure(figsize=fig_size_sq)
+    ax8  = fig8.add_axes([0.15,0.15,0.75,0.75])
+    fig9 = plt.figure(figsize=fig_size_sq)
+    ax9  = fig9.add_axes([0.15,0.15,0.75,0.75])
 
     markers = ['o', 'D', 's', 'v', '^', 'd', '*']
+    #colours = ['#3a42d4', '#d43a3a', '#60c1dc',\
+    #'#60dc96', '#dc6060', '#addc60', '#dc6079', '#60dcd4']
+    colours=['#313695', '#4575b4', '#74add1',\
+    '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026']
+
+    offset_label = {('1','0.0'):'Single sheet', ('2','0.0'):'$c=0.0$', ('2','0.25'):'$c=0.25$',('2','0.5'):'$c=0.5$',
+    ('3','0.0'):'n=3, c=0.0',('4','0.0'):'n=4, c=0.0',('5','0.0'):'n=5, c=0.0',('6','0.0'):'n=6, c=0.0',\
+    ('3','0.5'):'n=3, c=0.5',('4','0.5'):'n=4, c=0.5',('5','0.5'):'n=5, c=0.5',('6','0.5'):'n=6, c=0.5'}
+
+    name_sheets = 'delx{}_o'.format(delx[0])
+    for o in offset:
+        name_sheets += o
+    name_sheets += '_n'
+    perm_sheets, perm_sheets_err = [], []
+    count_8 = 0
+    for n in sheets:
+        print '\n#----------------------- n = {} ---------------------------#\n'.format(n)
+        for o in offset:
+            name_plot = 'n{}_o{}_delx{}_F'.format(n,o,delx)
+            name_comb = 'n{}_o{}_delx'.format(n,o)
+            name_sheets += n
+            count = 0
+            perm = []
+            perm_err = []
+            for dx in delx:
+                vel_max = 0
+
+                print '\n#----------------------- delx = {} ------------------------#\n'.format(dx)
+                name_plot = 'n{}_o{}_delx{}_F'.format(n,o,dx)
+                name_comb += dx
+                delP = []
+                delRho = []
+                Jz = []
+                Jz_err = []
+                width = []
+                rho_mean = []
+
+                fig1 = plt.figure(figsize=fig_size_long)
+                ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
+                fig2 = plt.figure(figsize=fig_size_long)
+                ax2  = fig2.add_axes([0.15,0.15,0.75,0.75])
+                fig3 = plt.figure(figsize=fig_size_sq)
+                ax3  = fig3.add_axes([0.15,0.15,0.75,0.75])
+                fig5 = plt.figure(figsize=fig_size_sq)
+                ax5  = fig5.add_axes([0.15,0.15,0.75,0.75])
+
+                try:
+                    for f in force:
+                        name_plot += f
+
+                        try:
+                            flow = FLOW(n,o,dx,f)
+                            C, P, dP = flow.stress_prof()
+                            CZ, RHOZ, CX, RHOX, dRho, VELZ, LD, RHOmean, RHOerr, VELerr = flow.density_prof('None')
+                            JZ_MOL, JZ_ERR = flow.flux()
+
+                            delP.append(dP)
+                            delRho.append(dRho)
+                            Jz.append(JZ_MOL)
+                            Jz_err.append(JZ_ERR)
+                            width.append(LD)
+                            rho_mean.append(RHOmean)
 
 
-    name_plot = 'n{}_o{}_delx{}_F'.format(sheets,offset,delx)
-    name_comb = 'n{}_o{}_delx'.format(sheets,offset)
-    count = 0
-    for dx in delx:
-        vel_max = 0
+                            ax1.plot(C,P, label='A={}'.format(f))
+                            ax2.plot(CZ,RHOZ, label='A={}'.format(f))
+                            ax3.plot(CX,RHOX, label='A={}'.format(f))
+                            #ax5.plot(CX,VELX, label='F={}'.format(f))
+                        except:
+                            print '\nThere was an error. Maybe no file for n={}, delx={}, o={} and F={} exists.\n'.format(n,dx,o,f)
 
-        print '\n#----------------------- delx = {} ------------------------#\n'.format(dx)
-        name_plot = 'n{}_o{}_delx{}_F'.format(sheets,offset,dx)
-        name_comb += dx
-        delP = []
-        delRho = []
-        Jz = []
-
-        fig1 = plt.figure(figsize=fig_size_long)
-        ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
-        fig2 = plt.figure(figsize=fig_size_long)
-        ax2  = fig2.add_axes([0.15,0.15,0.75,0.75])
-        fig3 = plt.figure(figsize=fig_size_sq)
-        ax3  = fig3.add_axes([0.15,0.15,0.75,0.75])
-        fig5 = plt.figure(figsize=fig_size_sq)
-        ax5  = fig5.add_axes([0.15,0.15,0.75,0.75])
-
-        for f in force:
-            name_plot += f
-
-            flow = FLOW(sheets,offset,dx,f)
-            C, P, dP = flow.stress_prof()
-            CZ, RHOZ, CX, RHOX, dRho, VELX, VMAX = flow.density_prof('None')
-            JZ_MOL = flow.flux()
-
-            delP.append(dP)
-            delRho.append(dRho)
-            Jz.append(JZ_MOL)
-
-            if VMAX > vel_max:
-                vel_max = VMAX
-
-            ax1.plot(C,P, label='F={}'.format(f))
-            ax2.plot(CZ,RHOZ, label='F={}'.format(f))
-            ax3.plot(CX,RHOX, label='F={}'.format(f))
-            #ax5.plot(CX,VELX, label='F={}'.format(f))
+                    delP_fit, Jz_fit, permeance, permeance_err = straight_fit(delP, Jz, 0, 300)
+                    width_avg, width_err = np.mean(np.array(width)), stats.sem(np.array(width))
+                    rho_avg = np.mean(rho_mean)
+                    permeability_si, permeability_err, permeance_si = perm_units(permeance[0], width_avg, rho_avg, width_err, permeance_err[0])
+                    print '\nThe permeability for delx =', dx, 'is', permeability_si, '+/-', permeability_err, 'm^2/sPa'
+                    print 'The permeance for delx =', dx, 'is', permeance_si, 'm/sPa'
+                    print 'The average width is', width_avg, 'A \n'
+                    perm.append(permeability_si/1e-17)
+                    perm_err.append(permeability_err/1e-17)
+                    perm_sheets.append(permeability_si/1e-17)
+                    perm_sheets_err.append(permeability_err/1e-17)
+                    
 
 
-        ax4.plot(delRho, delP, marker=markers[count], label='$d_{\mathrm{slit}}$ = %s'%(dx))
-        ax5.plot(delP, Jz, marker=markers[count], linestyle='None', label='$d_{\mathrm{slit}}$ = %s'%(dx))
-        ax6.plot(delP, Jz, marker=markers[count], linestyle='None', label='$d_{\mathrm{slit}}$ = %s'%(dx))
+                    ax4.plot(delRho, delP, marker=markers[count], label='$d_{\mathrm{slit}}$ = %s'%(dx))
+                    ax5.errorbar(delP, Jz, yerr=Jz_err, marker=markers[count], c=colours[count], linestyle='None', label='$d_{\mathrm{slit}}$ = %s'%(dx))
+                    ax5.plot(delP_fit, Jz_fit, c=colours[count],linestyle='dashed')
+                    ax6.errorbar(delP, Jz, yerr=Jz_err, marker=markers[count], c=colours[count],linestyle='None', label='$d_{\mathrm{slit}}$ = %s'%(dx))
+                    ax6.plot(delP_fit, Jz_fit, c=colours[count],linestyle='dashed')
+                    ax8.errorbar(delP, Jz, yerr=Jz_err, marker=markers[count_8], c=colours[count_8*2],linestyle='None', label=offset_label[(n, o)])
+                    ax8.plot(delP_fit, Jz_fit, c=colours[count_8*2],linestyle='dashed')
+                    count_8 += 1
 
 
-        ax1.set_xlabel('z (\AA)')
-        ax1.set_ylabel('P (MPa)')
-        ax1.set_ylim(-100,400)
-        ax1.set_xlim(0,100)
-        ax1.legend()
+                    ax1.set_xlabel('z (\AA)')
+                    ax1.set_ylabel('P (MPa)')
+                    ax1.set_ylim(-100,400)
+                    ax1.set_xlim(0,100)
+                    ax1.legend()
 
-        ax2.set_xlabel('z (\AA)')
-        ax2.set_ylabel('$\\rho$ (g/cm$^3$)')
-        #ax2.set_ylim(-50,300)
-        ax2.set_xlim(0,100)
-        ax2.legend()
+                    ax2.set_xlabel('z (\AA)')
+                    ax2.set_ylabel('$\\rho$ (g/cm$^3$)')
+                    #ax2.set_ylim(-50,300)
+                    ax2.set_xlim(0,100)
+                    ax2.legend(loc='upper left')
 
-        ax3.set_xlabel('x (\AA)')
-        ax3.set_ylabel('$\\rho$ (g/cm$^3$)')
-        #ax3.set_ylim(-50,300)
-        #ax3.set_xlim(0,100)
-        ax3.legend()
+                    ax3.set_xlabel('x (\AA)')
+                    ax3.set_ylabel('$\\rho$ (g/cm$^3$)')
+                    #ax3.set_ylim(-50,300)
+                    #ax3.set_xlim(0,100)
+                    ax3.legend()
 
-        ax4.set_xlabel('$\Delta\\rho$ (g/cm$^3$)')
-        ax4.set_ylabel('$\Delta$P (MPa)')
-        #ax3.set_ylim(-50,300)
-        #ax3.set_xlim(0,100)
-        ax4.legend()
+                    ax4.set_xlabel('$\Delta\\rho$ (g/cm$^3$)')
+                    ax4.set_ylabel('$\Delta$P (MPa)')
+                    #ax3.set_ylim(-50,300)
+                    #ax3.set_xlim(0,100)
+                    ax4.legend()
 
-        ax5.set_xlabel('$\Delta$P (MPa)')
-        ax5.set_ylabel('$J_z$ (10$^3$ mol/m$^2$s)')
-        #ax5.set_ylim(0,vel_max)
-        ax5.set_xlim(0, 300)
-        ax5.legend()
+                    ax5.set_xlabel('$\Delta$P (MPa)')
+                    ax5.set_ylabel('$J_z$ (10$^3$ mol/m$^2$s)')
+                    #ax5.set_ylim(0,vel_max)
+                    ax5.set_xlim(0, 150)
+                    ax5.legend()
 
-        ax6.set_xlabel('$\Delta$P (MPa)')
-        ax6.set_ylabel('$J_z$ (10$^3$ mol/m$^2$s)')
-        #ax5.set_ylim(0,vel_max)
-        ax6.set_xlim(0, 300)
-        ax6.legend()
+                    ax6.set_xlabel('$\Delta$P (MPa)')
+                    ax6.set_ylabel('$J_z$ (10$^3$ mol/m$^2$s)')
+                    ax6.set_ylim(0, 150)
+                    ax6.set_xlim(0, 120)
+                    ax6.legend()
+
+                    ax8.set_xlabel('$\Delta$P (MPa)')
+                    ax8.set_ylabel('$J_z$ (10$^3$ mol/m$^2$s)')
+                    ax8.set_ylim(0,30)
+                    ax8.set_xlim(0, 120)
+                    ax8.legend()
+
+                    fig1.savefig('PLOTS/{}/press_{}.{}'.format(EXT, name_plot, ext))
+                    fig2.savefig('PLOTS/{}/rhoz_{}.{}'.format(EXT, name_plot, ext))
+                    fig3.savefig('PLOTS/{}/rhox_{}.{}'.format(EXT, name_plot, ext))
+                    fig5.savefig('PLOTS/{}/Jz_{}.{}'.format(EXT, name_plot, ext))
+
+                    plt.close(fig1)
+                    plt.close(fig2)
+                    plt.close(fig3)
+                    plt.close(fig5)
+                    count += 1
+                except:
+                    print '\nMaybe no data exists for this set of parameters.\n'
+    
+    if len(sheets) == 1 and len(delx) >1:
+        delx_int = map(int,delx)
+        perm_dx_fit = exp_fit(delx_int, perm, 0, 15.5)
+        A_lower = 0.0610023944183
+        B_lower = 0.42515763262
+        A_higher = 1.66724563937
+        B_higher =  0.13260576073
+        print 'k fit parameters for delx dependence: A=', perm_dx_fit[2][0],', B=', perm_dx_fit[2][1] 
+        ax7.errorbar(delx_int, perm, yerr=perm_err, marker='o', markersize=11, linestyle='None', c=colours[0])
+        ax7.plot(perm_dx_fit[0], perm_dx_fit[1], linestyle='dashed', c=colours[0], label='Exponential fit')
+        ax7.plot(perm_dx_fit[0], f3(perm_dx_fit[0], A_lower, B_lower), linestyle='dotted', c=colours[1], label='Fit (5-9 \AA)')
+        #ax7.plot(perm_dx_fit[0], f3(perm_dx_fit[0], A_higher, B_higher), linestyle='dotted', c=colours[2], label='Fit (11-15 \AA)')
+        ax7.set_xlabel('$d_{\mathrm{slit}}$')
+        ax7.set_ylabel('$k$ (10$^{-17}$ m$^2$s$^{-1}$Pa$^{-1}$)')
+        ax7.set_ylim(0,12)
+        ax7.set_xlim(0,16)
+        ax7.legend(loc='upper left')
+
+        ## inset
+        #a7 = fig7.add_axes([0.25, 0.35, 0.3, 0.3])
+        #a7.errorbar(delx_int, perm, yerr=perm_err, marker='o', markersize=11, linestyle='None', c=colours[0])
+        #a7.plot(perm_dx_fit[0], perm_dx_fit[1], linestyle='dashed', c=colours[0])
+        #a7.plot(perm_dx_fit[0], f3(perm_dx_fit[0], A_lower, B_lower), linestyle='dotted', c=colours[1])
+        #a7.set_ylim(0,3)
+        #a7.set_xlim(4.5,9.5)
+
+        fig7.savefig('PLOTS/{}/perm_{}.{}'.format(EXT, name_comb, ext))
+    if len(offset)==1 and len(sheets) > 1:
+        sheets_int = map(int,sheets)
+        print sheets_int, perm_sheets
+        #perm_sheets_fit = exp_fit2(map(float,sheets_int), perm_sheets, 1.5, 6.5)
+        ax9.errorbar(sheets_int, perm_sheets, yerr=perm_sheets_err, marker='o', linestyle='None')
+        #ax9.plot(perm_sheets_fit[0], perm_sheets_fit[1], linestyle='dashed', c=colours[0])
+        ax9.set_xlabel('no. of sheets')
+        ax9.set_ylabel('$k$ (10$^{-17}$ m$^2$s$^{-1}$Pa$^{-1}$)')
+        fig9.savefig('PLOTS/{}/perm_{}.{}'.format(EXT, name_sheets, ext))
 
 
-        fig1.savefig('PLOTS/TESTS/{}/press_{}.{}'.format(EXT, name_plot, ext))
-        fig2.savefig('PLOTS/TESTS/{}/rhoz_{}.{}'.format(EXT, name_plot, ext))
-        fig3.savefig('PLOTS/TESTS/{}/rhox_{}.{}'.format(EXT, name_plot, ext))
-        fig5.savefig('PLOTS/TESTS/{}/Jz_{}.{}'.format(EXT, name_plot, ext))
-
-        count += 1
-    fig4.savefig('PLOTS/TESTS/{}/drop_{}.{}'.format(EXT, name_comb, ext))
-    fig6.savefig('PLOTS/TESTS/{}/Jz_{}.{}'.format(EXT, name_comb, ext))
+    fig4.savefig('PLOTS/{}/drop_{}.{}'.format(EXT, name_comb, ext))
+    fig6.savefig('PLOTS/{}/Jz_{}.{}'.format(EXT, name_comb, ext))
+    fig8.savefig('PLOTS/{}/Jz_{}.{}'.format(EXT, name_sheets, ext))
+    
 
     #plt.show()
 

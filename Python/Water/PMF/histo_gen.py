@@ -105,6 +105,9 @@ def main():
 
     data = []
     print K
+
+    fig1 = plt.figure(figsize=(9,7))
+    ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
     # Loop over all collected data
     meta_file = open("HIST/metadata_delx%s_run%i_k%s"%(DELX,run, K),'w')
     meta_file.write("## metadata file\n")
@@ -117,6 +120,13 @@ def main():
             z_pos = i*DZ
             meta_file.write("data_%s_delx%s_N%s_mol%s_%i  %.3f %s\n"%(FUNC, DELX, i, MOL, run, z_pos, K))
             if corr_flag == 0:
+
+                if (i*DZ)%2 == 0:
+                    print (i*DZ)
+                    print 'Adding to plot'
+                    ax1.hist(DATA, 50, alpha=0.5, normed=True)
+                    
+
 
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
@@ -149,11 +159,18 @@ def main():
         	print filename
         	print 'File does not exist.'
         	continue
+    ax1.set_xlabel('z (\AA)')
+    ax1.set_ylabel('$p_0$ (z)')
+    #ax1.set_ylim(-100,400)
+    ax1.set_xlim(40,60)
+    ax1.legend()
+    fig1.savefig('HIST.pdf')
     meta_file.close()
     return
 
 if __name__ == "__main__":
-    sys.path.append('/home/fred/SCRIPTS')
+    sys.path.append('/home/fred/SCRIPTS/Python')
+    from plotting_params import *
     main()
 
 
