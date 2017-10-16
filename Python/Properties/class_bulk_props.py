@@ -4,6 +4,7 @@ import numpy as np
 import csv
 import pandas as pd
 import itertools
+from scipy.integrate import simps
 
 
 
@@ -202,6 +203,28 @@ def mean_vals(p):
 
     return vol_mean, press_mean
 
+def blockAverage(data):
+
+    DataLen     = len(data) 
+    BlockSize   = 30       # max: 4 blocs (otherwise can't calc variance)
+  
+    NoBlocks    = int(DataLen/BlockSize)               # total number of such blocks in datastream
+    Data        = np.zeros(NoBlocks)                  # container for parcelling block 
+
+    # Loop to chop datastream into blocks
+    # and take average
+    for i in range(1,NoBlocks+1):
+        
+        istart = (i-1) * BlockSize
+        iend   =  istart + BlockSize
+        Data[i-1] = np.mean(data[istart:iend])
+
+    meanVal  = np.mean(Data)
+    meanErr  = np.sqrt(np.var(Data)/(NoBlocks - 1))
+
+
+    return meanVal, meanErr
+
 def fluid_vol(f,m,T,P,eps,rhos):
     '''Code to read in msd file'''
     try:
@@ -252,6 +275,138 @@ def fluid_vol(f,m,T,P,eps,rhos):
     sep = zhi-zlo
 
     return vol, fluid_count, sep
+
+
+def kappa_int_est(T,f):
+    T = float(T)
+
+
+    # some constants
+    kB  = 1.38e-23
+    h   = 6.626e-34
+    c   = 3e8
+    R   = 8.314
+
+    if f=='CO2':
+        klist = [1388,2349,667,667] # in cm-1
+        ndof = 2
+        Cv  = 28.82 # J/molK
+        Cp  = 37.136 # J/molK
+        tau_v0 = 4e-6 # s
+        tau_r = 2e-10 # s
+        tau_v = 0
+        for k in klist:
+            kSI = k*1e2
+
+            # vibrational temperature
+            Evib = h*c*kSI
+            Tvib = Evib/kB
+            Erat = Evib/(kB*T)
+
+            # probability
+            f = np.exp(-Erat)
+            # heat capacity
+            C_v = R*(Erat)**2*(np.exp(Erat)/(np.exp(Erat)-1)**2)
+
+            # bulk viscosity contribution
+            tau_vi = (C_v/Cv)*tau_v0 # in s
+            tau_v += tau_vi
+    elif f=='Water':
+        klist = [3385,3506,1885]
+        ndof = 3
+        Cv  = 74.533 # J/molK
+        Cp  = 75.351 # J/molK
+        tau_v0 = 0.3e-12 # s
+        tau_r = 2e-12 # s
+        tau_v = 0
+        for k in klist:
+            kSI = k*1e2
+
+            # vibrational temperature
+            Evib = h*c*kSI
+            Tvib = Evib/kB
+            Erat = Evib/(kB*T)
+
+            # probability
+            f = np.exp(-Erat)
+            # heat capacity
+            C_v = R*(Erat)**2*(np.exp(Erat)/(np.exp(Erat)-1)**2)
+
+            # bulk viscosity contribution
+            tau_vi = (C_v/Cv)*tau_v0 # in s
+            tau_v += tau_vi
+
+    elif f=='Decane':
+        klist = [3000]
+        ndof = 3
+        Cv  = 260 # J/molK
+        Cp  = 314.45 # J/molK
+        tau_v0 = 16e-12 # s
+        tau_r = 50e-12 # s
+        tau_v = 0
+        for k in klist:
+            kSI = k*1e2
+
+            # vibrational temperature
+            Evib = h*c*kSI
+            Tvib = Evib/kB
+            Erat = Evib/(kB*T)
+
+            # probability
+            f = np.exp(-Erat)
+            # heat capacity
+            C_v = R*(Erat)**2*(np.exp(Erat)/(np.exp(Erat)-1)**2)
+
+            # bulk viscosity contribution
+            tau_vi = (C_v/Cv)*tau_v0 # in s
+            tau_v += tau_vi
+        tau_v*=22 #for the 22 C-H bonds
+
+    fA   = (Cp/Cv)-1
+    #fA=1
+    kappaRot = fA*(ndof*R*tau_r)/(2*Cv)*100000*1000 # mPas
+    kappaVib = fA*tau_v*100000*1000 # mPas
+
+    return kappaVib, kappaRot
+
+
+def kappa_vib(T):
+    T = float(T)
+
+    klist = [1388,2349,667,667] # in cm-1
+
+    # some constants
+    kB  = 1.38e-23
+    h   = 6.626e-34
+    c   = 3e8
+    R   = 8.314
+
+    # CO2
+    Cv  = 28.82 # J/molK
+    Cp  = 37.136 # J/molK
+    Ptau = 7e-6*101325 # sPa
+
+    kappaVib = 0
+    for k in klist:
+        kSI = k*1e2
+
+        # vibrational temperature
+        Evib = h*c*kSI
+        Tvib = Evib/kB
+        Erat = Evib/(kB*T)
+
+        # probability
+        f = np.exp(-Erat)
+        # heat capacity
+        C_v = R*(Erat)**2*(np.exp(Erat)/(np.exp(Erat)-1)**2)
+
+        # bulk viscosity contribution
+        fA   = (Cp/Cv)-1
+        Kint = (C_v/Cv)*Ptau*1000 # in mPas
+
+        kappaVib += fA*Kint
+
+    return kappaVib
 
 # create class
 
@@ -318,7 +473,7 @@ class bulk_properties:
 
         shear_list = []
         count = 0
-        if self.m == 'tip4p' or self.m == 'TraPPErigid' or self.m == 'EPM2rigid' or self.m == 'EPM2flex':
+        if self.m == 'tip4p' or self.m == 'TraPPErigid' or 'EPM2' in self.m:
             tlim = 4000000
         else:
             tlim = 8000000
@@ -326,9 +481,9 @@ class bulk_properties:
             if t > tlim:
                 shear_list.append(1e6*s)
                 count += 1
-        shear_val = np.mean(np.array(shear_list))
-        shear_err = np.std(np.array(shear_list))/np.sqrt(len(shear_list))
-
+        #shear_val = np.mean(np.array(shear_list))
+        #shear_err = np.std(np.array(shear_list))/np.sqrt(len(shear_list))
+        shear_val, shear_err = blockAverage(shear_list)
         return shear_val, shear_err
 
     def bulk(self):
@@ -362,7 +517,7 @@ class bulk_properties:
 
         bulk_list = []
         count = 0
-        if self.m == 'tip4p' or self.m == 'TraPPErigid' or self.m == 'EPM2rigid' or self.m == 'EPM2flex':
+        if self.m == 'tip4p' or self.m == 'TraPPErigid' or 'EPM2' in self.m:
             tlim = 4000000
         else:
             tlim = 8000000
@@ -370,9 +525,9 @@ class bulk_properties:
             if t > tlim:
                 bulk_list.append(1e6*s)
                 count += 1
-        bulk_val = np.mean(np.array(bulk_list))
-        bulk_err = np.std(np.array(bulk_list))/np.sqrt(len(bulk_list))
-
+        #bulk_val = np.mean(np.array(bulk_list))
+        #bulk_err = np.std(np.array(bulk_list))/np.sqrt(len(bulk_list))
+        bulk_val, bulk_err = blockAverage(bulk_list)
         return bulk_val, bulk_err
 
 
@@ -382,7 +537,7 @@ class bulk_properties:
 
     def diff(self,tstamp, dt):
         data = self.msd
-        if self.m == 'tip4p' or self.m == 'TraPPErigid' or self.m == 'EPM2rigid' or self.m == 'EPM2flex':
+        if self.m == 'tip4p' or self.m == 'TraPPErigid' or 'EPM2' in self.m:
             tstamp = 2000000
         idx = list(data[0]).index(tstamp)
         convert = 10**(-5)
@@ -396,6 +551,7 @@ class bulk_properties:
         diff[3] = 1e9*diff[3]/3 # As this is averaging over all directions
 
         return diff
+
 
 class confined_properties:
 
@@ -433,7 +589,7 @@ class confined_properties:
         except:
             r = np.mean(np.array(self.densprof[1]))
 
-        return r
+        return float(r)
 
     def shear(self):
         for i in range(len(self.data)-1):
@@ -577,6 +733,28 @@ class confined_properties:
         diff[3] = diff[3]/3 # As this is averaging over all directions
 
         return diff
+
+    def diff2(self):
+        C_vv_array = np.loadtxt("{}/C_vv_y_{}_T{}_z{}_eps{}_Ds.dat".format(self.f,self.m, self.T,self.z, self.eps))
+        times =  C_vv_array[:,0]
+        C_vv_ave = C_vv_array[:,1]
+
+        if 'Water' in self.f:
+            time_conv = 1e-12
+            space_conv = 1e-10
+            dt = 0.0005
+        elif 'LJ' in self.f:
+            time_conv = 1
+            space_conv = 1
+            dt = 0.001
+
+        int_vacf = simps(C_vv_ave, dx=dt)
+
+        diff_2d = int_vacf/2
+        conv = space_conv**2/time_conv
+        diff_2d_si = diff_2d*conv
+
+        return diff_2d_si
 
     def separation(self):
         #sep2 = fluid_vol(self.f,self.m,self.T,self.z, self.eps)[2]

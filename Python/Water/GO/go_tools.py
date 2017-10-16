@@ -8,16 +8,17 @@ from scipy import stats
 from scipy.optimize import curve_fit
 
 class FLOW:
-    def __init__(self, n,o,dx,f):
+    def __init__(self, n,o,dx,f,func):
         self.n = n
         self.o = o
         self.dx = dx
         self.f = f
+        self.func = func
 
     def read_log(self):
         '''Code to read in log file'''
 
-        filename = 'DATA/log.n{}_o{}_delx{}_F{}'.format(self.n,self.o,self.dx,self.f)
+        filename = 'DATA/log.{}_n{}_o{}_delx{}_F{}'.format(self.func,self.n,self.o,self.dx,self.f)
         f = open(filename,'r')
 
         data = f.read()
@@ -34,7 +35,7 @@ class FLOW:
         return DATA
 
     def coords(self):
-        filename = 'DATA/log.n{}_o{}_delx{}_F{}'.format(self.n,self.o,self.dx,self.f)
+        filename = 'DATA/log.{}_n{}_o{}_delx{}_F{}'.format(self.func,self.n,self.o,self.dx,self.f)
         f = open(filename,'r')
 
         data = f.read()
@@ -54,51 +55,53 @@ class FLOW:
         return area_xy, area_flow, volume
 
     def stress_prof(self):
-        filename = 'DATA/stress.n{}_o{}_delx{}_F{}'.format(self.n,self.o,self.dx,self.f)
-        f = open(filename,'r')
-        data_lines = f.readlines()
-        f.close()
+        filename = 'DATA/stress.{}_n{}_o{}_delx{}_F{}'.format(self.func,self.n,self.o,self.dx,self.f)
+        #f = open(filename,'r')
+        #data_lines = f.readlines()
+        #f.close()
 
         area = self.geometry()[0]
 
         count_tmp = 0
         dz = 0
-        for line in data_lines:
-            if line[0] != '#' and len(line.split()) != 2 and len(line.split()) != 3: 
-                dz = float(line.split()[1]) - dz
-                count_tmp +=1
-                if count_tmp ==2:
-                    break
+        with open(filename) as infile:
+            for line in infile:
+                if line[0] != '#' and len(line.split()) != 2 and len(line.split()) != 3: 
+                    dz = float(line.split()[1]) - dz
+                    count_tmp +=1
+                    if count_tmp ==2:
+                        break
         vol = area*dz
 
         coords, pressure = [], []
         coords_tot, pressure_tot = [], []
         count_tmp = -1
-        for line in data_lines:
-            items = line.split()
-            if len(items) == 3:
-                count_tmp += 1
-                if count_tmp == 0:
-                    continue
-                else:
-                    coords_tot.append(coords)
-                    pressure_tot.append(pressure)
-                    coords, pressure = [], []
-                
+        with open(filename) as infile:
+            for line in infile:
+                items = line.split()
+                if len(items) == 3:
+                    count_tmp += 1
+                    if count_tmp == 0:
+                        continue
+                    else:
+                        coords_tot.append(coords)
+                        pressure_tot.append(pressure)
+                        coords, pressure = [], []
+                    
 
-            elif line[0] != '#' and len(items) != 2 and len(items) != 3:
-                Coord = float(items[1])
-                Ncount = float(items[2])
-                xx = float(items[3])*Ncount/vol
-                yy = float(items[4])*Ncount/vol
-                zz = float(items[5])*Ncount/vol 
-                Pxx = -xx
-                Pyy = -yy
-                Pzz = -zz
-                pres = (Pxx+Pyy+Pzz)*0.101325/3
+                elif line[0] != '#' and len(items) != 2 and len(items) != 3:
+                    Coord = float(items[1])
+                    Ncount = float(items[2])
+                    xx = float(items[3])*Ncount/vol
+                    yy = float(items[4])*Ncount/vol
+                    zz = float(items[5])*Ncount/vol 
+                    Pxx = -xx
+                    Pyy = -yy
+                    Pzz = -zz
+                    pres = (Pxx+Pyy+Pzz)*0.101325/3
 
-                coords.append(Coord)
-                pressure.append(pres)
+                    coords.append(Coord)
+                    pressure.append(pres)
 
         coords_tot.append(coords)
         #print coords_tot
@@ -125,12 +128,12 @@ class FLOW:
 
     def density_prof(self, xlo):
 
-        filename = filename = 'DATA/dens.n{}_o{}_delx{}_F{}'.format(self.n,self.o,self.dx,self.f)
+        filename = filename = 'DATA/dens.{}_n{}_o{}_delx{}_F{}'.format(self.func,self.n,self.o,self.dx,self.f)
         
         # read in data
-        f = open(filename,'r')
-        data = f.read()        
-        data_lines = data.split('\n')
+        #f = open(filename,'r')
+        #data = f.read()        
+        #data_lines = data.split('\n')
         
         
         xbin = []
@@ -175,34 +178,34 @@ class FLOW:
         count = 1
         count_tmp = 0
         count_tmp2 = 0
-        for j in range(4,len(data_lines)-1):
+        with open(filename) as infile:
+            for line in infile:
+                if len(line.split()) != 2 and len(line.split()) != 3 and line.split()[0] != '#':
+                    x_val = float(line.split()[1])
+                    z_val = float(line.split()[2])
+                    den_val = float(line.split()[4])
+                    vel_val = float(line.split()[7])
 
-            if len(data_lines[j].split()) != 2 and len(data_lines[j].split()) != 3:
-                x_val = float(data_lines[j].split()[1])
-                z_val = float(data_lines[j].split()[2])
-                den_val = float(data_lines[j].split()[4])
-                vel_val = float(data_lines[j].split()[7])
+                    # only select values within slit
+                    if x_val in xlist and z_val in zlist:
+                        x_ind = xlist.index(x_val)
+                        z_ind = zlist.index(z_val)
+                        #print z_ind, z_val
+                        xbin.append(x_val)
+                        zbin.append(z_val)
 
-                # only select values within slit
-                if x_val in xlist and z_val in zlist:
-                    x_ind = xlist.index(x_val)
-                    z_ind = zlist.index(z_val)
-                    #print z_ind, z_val
-                    xbin.append(x_val)
-                    zbin.append(z_val)
-
-                    # average over all time steps
-                    if count_tmp == 0:
-                        density[x_ind][z_ind] = den_val
-                        velocity[x_ind][z_ind] = vel_val
-                    else:
-                        density[x_ind][z_ind] = (density[x_ind][z_ind]+den_val)/2
-                        velocity[x_ind][z_ind] = (velocity[x_ind][z_ind]+vel_val)/2
-                    coords_x[x_ind][z_ind] = xlist[x_ind]
-                    coords_z[x_ind][z_ind] = zlist[z_ind]
-                    count_tmp += 1
-            count =2
-      
+                        # average over all time steps
+                        if count_tmp == 0:
+                            density[x_ind][z_ind] = den_val
+                            velocity[x_ind][z_ind] = vel_val
+                        else:
+                            density[x_ind][z_ind] = (density[x_ind][z_ind]+den_val)/2
+                            velocity[x_ind][z_ind] = (velocity[x_ind][z_ind]+vel_val)/2
+                        coords_x[x_ind][z_ind] = xlist[x_ind]
+                        coords_z[x_ind][z_ind] = zlist[z_ind]
+                        count_tmp += 1
+                count =2
+          
 
         density_z = np.average(density, axis = 0)
         density_z_err = stats.sem(density, axis = 0)
@@ -280,6 +283,22 @@ def straight_fit(x, y, xmin, xmax):
         fit.append(slope*x)
     return xdat, fit, slope, slope_err
 
+def straight_fit2(X, Y, xmin, xmax):
+    Xnew, Ynew = [],[]
+    for x,y in itertools.izip(X,Y):
+        if y > 0.2:
+            Xnew.append(x)
+            Ynew.append(y)
+    print Xnew, Ynew
+    params, cov = curve_fit(f1, np.array(Xnew), np.array(Ynew))
+    #slope_err = np.sqrt(np.diag(cov))
+    xdat = np.linspace(xmin, xmax, 100)
+    fit = []
+    for x in xdat:
+        fit.append(params[0]*x+params[1])
+    return xdat, fit
+
+
 def poly_fit(x, y, xmin, xmax):
     params, cov = curve_fit(f2, np.array(x), np.array(y))
     #slope_err = np.sqrt(np.diag(cov))
@@ -287,6 +306,15 @@ def poly_fit(x, y, xmin, xmax):
     fit = []
     for x in xdat:
         fit.append(params[0]*x**2+params[1]*x)
+    return xdat, fit, params
+
+def poly_fit2(x, y, xmin, xmax):
+    params, cov = curve_fit(f6, np.array(x), np.array(y))
+    #slope_err = np.sqrt(np.diag(cov))
+    xdat = np.linspace(xmin, xmax, 100)
+    fit = []
+    for x in xdat:
+        fit.append(params[0]*x**2-0.5*params[0]*x)
     return xdat, fit, params
 
 def exp_fit(x, y, xmin, xmax):
@@ -299,16 +327,20 @@ def exp_fit(x, y, xmin, xmax):
     return xdat, fit, params
 
 def exp_fit2(x, y, xmin, xmax):
-    params, cov = curve_fit(f5, np.array(x), np.array(y))
+    params, cov = curve_fit(f4, np.array(x), np.array(y), p0=[1,-1,0.15])
     #slope_err = np.sqrt(np.diag(cov))
+    print 'The parameters are:', params
     xdat = np.linspace(xmin, xmax+1, 100)
     fit = []
     for x in xdat:
-        fit.append(f5(x,params[0],params[1],params[2]))
+        fit.append(f4(x,params[0],params[1],params[2]))
     return xdat, fit, params
 
 def f(x, A):
     return A*x
+
+def f1(x, A, B):
+    return A*x+B
 
 def f2(x, A, B):
     return A*x**2+B*x
@@ -321,6 +353,10 @@ def f4(x, a, b, c):
 
 def f5(x, a, b, c):
     return a*b**x + c
+
+def f6(x, A):
+    return A*x**2-0.5*A*x
+
 
 def perm_units(permeance, width, rho_mean, w_err, p_err):
     width_si = 1e-10*width
@@ -343,3 +379,113 @@ def err_Jz (rho_list, rho_err, v_list, v_err):
     # Jz_err
     Jz_err = (1/len(rho_list))*np.sqrt(sum(pv_err))
     return Jz_err
+
+def vel_prof(n,o,dx,f):
+    print 'Reading in velocity data...'
+
+    filename = 'DATA/dens.CH_n{}_o{}_delx{}_F{}_xyz_samp'.format(n,o,dx,f)
+    
+    # read in data
+    #file = open(filename,'r')
+    #data = file.read()        
+    #data_lines = data.split('\n')
+    
+    
+    xbin = []
+    ybin = []
+    zbin = []
+
+    
+    xlist = list(np.arange(0.5,23.5+1,1))
+    ylist = list(np.arange(0.5,18.5+1,1))
+    zlist = list(np.arange(51.8, 54.4, 0.2))
+
+
+    # round values in list so that they agree with data
+    xlist = [round(n, 1) for n in xlist]
+    ylist = [round(n, 1) for n in ylist]
+    zlist = [round(n, 1) for n in zlist]
+
+    xdim = len(xlist)
+    ydim = len(ylist)
+    zdim = len(zlist)
+
+    vx = np.zeros((xdim,ydim))
+    vx_init = np.zeros((xdim,ydim))
+    vy = np.zeros((xdim,ydim))
+    vy_init = np.zeros((xdim,ydim))
+    vmag = np.zeros((xdim,ydim))
+    vmag_init = np.zeros((xdim,ydim))
+    coords_x = np.zeros((xdim,ydim))
+    coords_y = np.zeros((xdim,ydim))
+    count_tmp = np.zeros((xdim,ydim))
+
+    count = 1
+    timestep = 1
+
+    with open(filename) as infile:
+        for line in infile:
+            if len(line.split()) == 3:
+                timestep += 1
+            elif len(line.split()) != 2 and len(line.split()) != 3 and line.split()[0] != '#':
+                x_val = float(line.split()[1])
+                y_val = float(line.split()[2])
+                z_val = float(line.split()[3])
+                vx_val = float(line.split()[6])
+                vy_val = float(line.split()[7])
+                vel_val = np.sqrt(vx_val**2+vy_val**2)
+
+                # only select values within slit
+                if z_val in zlist:
+                    x_ind = xlist.index(x_val)
+                    y_ind = ylist.index(y_val)
+                    z_ind = zlist.index(z_val)
+                    #print z_ind, z_val
+                    xbin.append(x_val)
+                    ybin.append(y_val)
+                    zbin.append(z_val)
+
+                    # average over all time steps
+                    if z_val == 51.8 and count_tmp[x_ind][y_ind] == 0:
+                        #print x_val, y_val, z_val, vx_val, vy_val, vel_val
+                        #print x_ind, y_ind
+                        vx[x_ind][y_ind] = vx_val
+                        vx_init[x_ind][y_ind] = vx_val
+                        vy[x_ind][y_ind] = vy_val
+                        vy_init[x_ind][y_ind] = vy_val
+                        vmag[x_ind][y_ind] = vel_val
+                        vmag_init[x_ind][y_ind] = vel_val
+
+                    else:
+                        vx[x_ind][y_ind] = (vx[x_ind][y_ind]+vx_val)/2 
+                        vy[x_ind][y_ind] = (vy[x_ind][y_ind]+vy_val)/2
+                        vmag[x_ind][y_ind] = (vmag[x_ind][y_ind]+vel_val)/2
+                        if count_tmp[x_ind][y_ind] < len(zlist):
+                            vx_init[x_ind][y_ind] = (vx[x_ind][y_ind]+vx_val)/2
+                            vy_init[x_ind][y_ind] = (vy[x_ind][y_ind]+vy_val)/2
+                            vmag_init[x_ind][y_ind] = (vmag[x_ind][y_ind]+vel_val)/2
+
+                    coords_x[x_ind][y_ind] = xlist[x_ind]
+                    coords_y[x_ind][y_ind] = ylist[y_ind]
+                    #if x_val==10.5 and y_val==10.5:
+                        #print timestep, x_val, y_val, z_val, vx_val, vx[x_ind][y_ind]
+                    count_tmp[x_ind][y_ind] += 1
+
+            count =2
+  
+    print timestep, 'timesteps were collected.'
+
+    #print vx_init[0,:], coords_x[0,:], coords_y[0,:]
+    #print vx_init[10,:], vx[10,:], coords_x[10,:], coords_y[10,:]
+    coords_y = coords_y[0,:] 
+    coords_x = coords_x[:,0] 
+
+
+    #vx[x_ind][y_ind] = np.average(vx,axis=1)
+    #vx_init[x_ind][y_ind] = np.average(vx_init,axis=1)
+    #vy[x_ind][y_ind] = np.average(vy,axis=1)
+    #vy_init[x_ind][y_ind] = np.average(vy_init,axis=1)
+    #vmag[x_ind][y_ind] = np.average(vmag,axis=1)
+    #vmag_init[x_ind][y_ind] = np.average(vmag_init,axis=1)
+
+    return coords_x, coords_y, vx, vx_init, vy, vy_init, vmag, vmag_init

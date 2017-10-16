@@ -81,7 +81,6 @@ def hist_data(fn, func, dx, dz, N, run, corr_flag, mol):
     reduced_data_file = np.array([steps, z_data]).transpose()
 
     np.savetxt('HIST/data_%s_delx%s_N%i_mol%s_%i'%(func,dx,N,mol,run),reduced_data_file, fmt=['%3i','%.18f'])
-    #np.savetxt('delx%s/data_CH_delx9_N%i_%i_2d'%(dx,N,run),reduced_data_file_2d, fmt=['%3i','%.18f','%.18f'])
 
     return return_val
 

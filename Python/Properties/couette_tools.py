@@ -28,41 +28,23 @@ def read_log(f):
     #print 'Finished.' 
     return DATA
 
-def diffusion(vacf, DT, t_conv, s_conv, pre):
 
-    int_vacf = simps(vacf, dx=DT)
 
-    diff = int_vacf/3
-    diff_2d = int_vacf/2
-
-    conv = s_conv**2/t_conv
-
-    diff_si = diff*conv
-    diff_2d_si = diff_2d*conv
-
-    if pre == 'C_vv':
-        print 'The self-diffusion coefficient in 3D is', diff_si
-        diff_ret = diff_si
-    else:
-        print 'The self-diffusion coefficient in 2D is', diff_2d_si
-        diff_ret = diff_2d_si
-
-    return diff_ret
-
-def mid_point(Y,VAR):
+def mid_point(Y,VAR, tol=0.03):
     '''Code to find the mid point in the array'''
 
     # Find mid point
     mid = int(len(Y)/2)
 
 
+
     for k in range(1,mid):
-        if abs(VAR[k-1]-VAR[k]) >= 0.03:           
+        if abs(VAR[k-1]-VAR[k]) >= tol:           
             LEFT = k
             break
     for k in range(1,mid):        
-        if abs(VAR[::-1][k-1]-VAR[::-1][k]) >= 0.03:           
-            RIGHT = len(Y)-k
+        if abs(VAR[::-1][k-1]-VAR[::-1][k]) >= tol:           
+            RIGHT = len(Y)-k-1
             break
 
     mid_p = int(LEFT+(RIGHT - LEFT)/2)
@@ -74,10 +56,10 @@ def rho_wall_max(RHO, LEFT):
     rho_max = np.max(rho_wall)
     return rho_max
 
-def read_densprof(f):
+def read_velprof(folder, pre, f):
     '''Code to read in density  data from a 1d LAMMPS output file'''
 
-    filename = 'Water_Graphene/densprof.{}_1'.format(f)
+    filename = '{}/{}.{}'.format(folder,pre,f)
     f = open(filename,'r')
 
     data = f.read()
@@ -87,6 +69,8 @@ def read_densprof(f):
     zcoord_tmp =[]
     dens = []
     dens_tmp = []
+    vx = []
+    vx_tmp = []
 
     idx = 0
     count  = 0
@@ -98,52 +82,63 @@ def read_densprof(f):
             count += 1
             zcoord.append(zcoord_tmp)
             dens.append(dens_tmp)
+            vx.append(vx_tmp)
             zcoord_tmp = []
             dens_tmp = []
+            vx_tmp = []
 
         elif len(data_lines[j].split()) != 3:
             z_val = float(data_lines[j].split()[1])
-            dens_val = float(data_lines[j].split()[4])
+            dens_val = float(data_lines[j].split()[3])
+            vx_val = float(data_lines[j].split()[4])
             zcoord_tmp.append(z_val)
             dens_tmp.append(dens_val)
+            vx_tmp.append(vx_val)
 
 
     zcoord = np.array(zcoord[0])
     dens   = np.mean(np.array(dens), axis=0)
+    vx   = np.mean(np.array(vx), axis=0)
 
-    return zcoord, dens
+    return zcoord, dens, vx
 
-def coords(f):
-    filename = 'Water_Graphene/log.{}_1'.format(f)
+def derivative(X, Y):
+    diff = np.diff(Y)
+    dx = X[1]-X[0]
+    der = diff/dx
+    return der
+
+
+def coords(folder,pre,f):
+    filename = '{}/{}.{}'.format(folder,pre,f)
     f = open(filename,'r')
 
     data = f.read()
     data_lines = data.split('\n')
 
-    coord_line = re.sub('[\(\)]', '', data_lines[45]).split('=')[1].split('to')
+
+    coord_line = re.sub('[\(\)]', '', data_lines[41]).split('=')[1].split('to')
     xlo, ylo, zlo = coord_line[0].strip(' ').split(' ')
     xhi, yhi, zhi = coord_line[1].strip(' ').split(' ')
 
     return float(xlo), float(xhi), float(ylo), float(yhi), float(zlo), float(zhi)
 
-def geometry(f):
-    xlo, xhi, ylo, yhi, zlo, zhi = coords(f)
+def geometry(folder):
+    xlo, xhi, ylo, yhi, zlo, zhi = coords(folder,'log', 'lammps')
     area_xy = (xhi-xlo)*(yhi-ylo)
     area_flow = (yhi-ylo)*(zhi-zlo)
     volume = (xhi-xlo)*(yhi-ylo)*(zhi-zlo)
     return area_xy, area_flow, volume
 
 
-def stress_prof(f,xtra='None'):
-    if xtra == 'None':
-        filename = 'Water_Graphene/stress.{}_1'.format(f)
-    else:
-        filename = 'Water_Graphene/stress{}.{}_1'.format(xtra,f)
+def stress_prof(folder,pre,f):
+
+    filename = '{}/{}.{}'.format(folder,pre,f)
     file = open(filename,'r')
     data_lines = file.readlines()
     file.close()
 
-    area = geometry(f)[0]
+    area = geometry(folder)[0]
 
     count_tmp = 0
     dz = 0
@@ -155,8 +150,8 @@ def stress_prof(f,xtra='None'):
                 break
     vol = area*dz
 
-    coords, pressure, pxy, pxz, pyz = [], [], [], [], []
-    coords_tot, pressure_tot, pxy_tot, pxz_tot, pyz_tot= [], [], [], [], []
+    coords, pressure, pxy, pxz, pyz, pxx, pyy, pzz = [], [], [], [], [], [], [], []
+    coords_tot, pressure_tot, pxy_tot, pxz_tot, pyz_tot, pxx_tot, pyy_tot, pzz_tot = [], [], [], [], [], [], [], []
     count_tmp = -1
     for line in data_lines:
         items = line.split()
@@ -170,7 +165,10 @@ def stress_prof(f,xtra='None'):
                 pxy_tot.append(pxy)
                 pxz_tot.append(pxz)
                 pyz_tot.append(pyz)
-                coords, pressure, pxy, pxz, pyz = [], [], [], [], []
+                pxx_tot.append(pxx)
+                pyy_tot.append(pyy)
+                pzz_tot.append(pzz)
+                coords, pressure, pxy, pxz, pyz, pxx, pyy, pzz = [], [], [], [], [], [], [], []
             
 
         elif line[0] != '#' and len(items) != 2 and len(items) != 3:
@@ -195,17 +193,29 @@ def stress_prof(f,xtra='None'):
             pxy.append(Pxy)
             pxz.append(Pxz)
             pyz.append(Pyz)
+            pxx.append(Pxx)
+            pyy.append(Pyy)
+            pzz.append(Pzz)
 
     coords_tot.append(coords)
     pressure_tot.append(pressure)
     pxy_tot.append(pxy)
     pxz_tot.append(pxz)
     pyz_tot.append(pyz)
+    pxx_tot.append(pxx)
+    pyy_tot.append(pyy)
+    pzz_tot.append(pzz)
     coords = np.mean(np.array(coords_tot),axis=0)
     pressure = np.mean(np.array(pressure_tot),axis=0)
+    pxx_tot = np.mean(np.array(pxx_tot),axis=0)
+    pyy_tot = np.mean(np.array(pyy_tot),axis=0)
+    pzz_tot = np.mean(np.array(pzz_tot),axis=0)
+    pxy_tot = np.mean(np.array(pxy_tot),axis=0)
+    pxz_tot = np.mean(np.array(pxz_tot),axis=0)
+    pyz_tot = np.mean(np.array(pyz_tot),axis=0)
     zmax = np.max(coords)
   
-    return coords, pressure, np.array(pressure_tot), np.array(pxy_tot),np.array(pxz_tot),np.array(pyz_tot), dz  
+    return coords, pressure, np.array(pressure_tot), np.array(pxy_tot),np.array(pxz_tot),np.array(pyz_tot), np.array(pxx_tot), np.array(pyy_tot), np.array(pzz_tot), dz  
 
 def props(data):
     #print 'Reading in thermodynamic properties.' 
@@ -296,3 +306,32 @@ def eta(f, data, delz):
     ETA = eta_scale*ACF_int
 
     return ETA
+
+def pmf_prof(f):
+
+    filename = ilename = 'Water_Graphene/pmf.{}_1'.format(f)
+    
+    # read in data
+    f = open(filename,'r')
+    data = f.read()
+    
+    data_lines = data.split('\n')
+    
+    
+    zbin = []
+    pmf = []
+
+
+    for j in range(1,len(data_lines)-1):
+        if data_lines[j].split()[0][0] != '#':
+            bin_val = float(data_lines[j].split()[0])
+            pmf_val = float(data_lines[j].split()[1])
+
+            zbin.append(bin_val)
+            pmf.append(pmf_val)
+
+
+    zbin = np.array(zbin)
+    pmf = np.array(pmf)
+
+    return zbin, pmf

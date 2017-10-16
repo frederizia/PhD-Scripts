@@ -7,7 +7,7 @@ import matplotlib
 import sys
 import numpy as np
 from scipy.integrate import simps
-from confined_properties import *
+from confined_tools import *
 
 def GetArgs():
     ## Parse command line arguments 
@@ -92,6 +92,9 @@ def main():
 
     # eta
     fig6 = plt.figure(figsize=fig_size_sq)
+
+    # pmf
+    fig7 = plt.figure(figsize=fig_size_sq)
     
 
 
@@ -134,11 +137,14 @@ def main():
         # pressure profile
         try:
             print 'Reading in stress.{}'.format(f)
-            Z_P, P, Ptot, Pxy, Pxz, Pyz, delz = stress_prof(f, 'None')
+            Z_P, P, Ptot, Pxy, Pxz, Pyz, Pxx, Pyy, Pzz, delz = stress_prof(f, 'None')
             MID_P, LEFT_P, RIGHT_P = mid_point(Z_P,P)
             Z_P = Z_P-Z_P[MID_P]
             label = '$\Delta z = {}$ \AA'.format(dz)
-            ax4.plot(Z_P, P, label=label)
+            #ax4.plot(Z_P, P, label=label)
+            ax4.plot(Z_P, Pxx, label='Pxx', linestyle=ls[0])
+            ax4.plot(Z_P, Pyy, label='Pyy', linestyle=ls[1])
+            ax4.plot(Z_P, Pzz, label='Pzz', linestyle=ls[2])
 
         except IOError:
             print 'File stress.{}_1 does not exist.'.format(f)
@@ -148,14 +154,14 @@ def main():
             ax5  = fig5.add_axes([0.15,0.15,0.75,0.75])
             ax5.plot(Z_P, P, c=colours[0])
             ax5.set_ylabel('P (MPa)')
-            ax5.set_ylim(0,np.max(P)+0.05*np.max(P))
+            ax5.set_ylim(-(np.max(P)+0.05*np.max(P))/2,np.max(P)+0.05*np.max(P))
             ax5.yaxis.label.set_color(colours[0])
             for tl in ax5.get_yticklabels():   
                 tl.set_color(colours[0])
 
             ax5b = ax5.twinx()
             ax5b.plot(Z, RHO, c=colours[6], linestyle='dashed')
-            ax5b.set_ylim(0,np.max(RHO)+0.05*np.max(RHO))
+            ax5b.set_ylim(-(np.max(RHO)+0.05*np.max(RHO))/2,np.max(RHO)+0.05*np.max(RHO))
             fig5.text(0.975, 0.5, '$\\rho_{\mathrm{wall}}$ (g/cm$^3$)', color=colours[6], ha='center', va='center', fontsize=24,rotation=270)
             for tl in ax5b.get_yticklabels():   
                 tl.set_color(colours[6])
@@ -164,6 +170,44 @@ def main():
             fig5.savefig('PLOTS_C/stressdens_{}.pdf'.format(dz))
         except:
             pass
+
+        # pmf
+        try:
+            print 'Reading in pmf.{}_1'.format(f)
+            Z_PMF, PMF = pmf_prof(f)
+            MID_PMF = int(len(PMF)/2)
+            PMF_avg = np.mean(PMF[MID_PMF-20:MID_PMF+20])
+            PMF = PMF-PMF_avg
+            Z_PMF = Z_PMF-Z_PMF[MID_PMF]
+            PMF_min = np.min(PMF[40:-60])
+            PMF_max = np.max(PMF[60:-60])
+            dPMF = PMF_max-PMF_min
+            print 'The energy barrier for the first layer is:', dPMF
+            label = '$\Delta z = {}$ \AA'.format(dz)
+
+            fig7.clear()
+            ax7  = fig7.add_axes([0.15,0.15,0.75,0.75])
+            ax7.plot(Z_PMF, PMF, c=colours[0], lw=3,linestyle='-')
+            ax7.set_ylabel('$\Delta$ PMF (kcal/mol)')
+            ax7.set_ylim(-0.75,2)
+            ax7.yaxis.label.set_color(colours[0])
+            for tl in ax7.get_yticklabels():   
+                tl.set_color(colours[0])
+            ax7b = ax7.twinx()
+            ax7b.set_ylim(0,3.5)
+            ax7b.plot(Z, RHO, c=colours[6], lw=3,linestyle='dashed')
+            #ax3b.set_ylabel('$\\rho_{\mathrm{wall}}$ (g/cm$^3$)', rotation=270)
+            #ax3b.yaxis.label.set_color(colours[6])
+            fig7.text(0.975, 0.5, '$\\rho$ (g/cm$^3$)', color=colours[6], ha='center', va='center', fontsize=24,rotation=270)
+            for tl in ax7b.get_yticklabels():   
+                tl.set_color(colours[6])
+            ax7.set_xlabel('$\Delta z$ (\AA)')
+            ax7.set_xlim(-15,15)
+            fig7.savefig('PLOTS_C/pmf_{}.pdf'.format(dz))
+
+        except IOError:
+            print 'File pmf.{}_1 does not exist.'.format(f)
+
         # viscosity profile
         '''try:
             print 'Reading in stresseta.{}'.format(f)
@@ -288,6 +332,7 @@ def main():
     ax4.set_xlabel('$z-z_{\mathrm{mid}}$')
     #ax2.set_xlim(Z_left, Z_right)
     ax4.set_xlim(-18, 18)
+    ax4.legend()
     #ax4.set_ylim(0, 4)
 
     if len(dZ) == 1:

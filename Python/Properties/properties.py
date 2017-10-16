@@ -3,11 +3,10 @@
 from __future__ import division
 import numpy as np
 import matplotlib
-matplotlib.use('agg')
+#matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import argparse
 from class_bulk_props import *
-from plotting_params import *
 import sys
 
 def GetArgs():
@@ -111,6 +110,10 @@ def main():
     png = args.png[0]
     fig_size = (9,7)
 
+    colours=['#313695', '#4575b4', '#74add1',\
+    '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026']
+
+
     if png == 'y':
         EXT = 'png'
     else:
@@ -138,9 +141,16 @@ def main():
         ax7  = fig7.add_axes([0.1,0.15,0.8,0.75])
         fig8 = plt.figure(figsize=fig_size)
         ax8  = fig8.add_axes([0.1,0.15,0.8,0.75])
+        fig9 = plt.figure(figsize=fig_size)
+        ax9  = fig9.add_axes([0.1,0.15,0.8,0.75])
+        fig10 = plt.figure(figsize=fig_size)
+        ax10  = fig10.add_axes([0.1,0.15,0.8,0.75])
 
         if fluid == 'CO2':
             saft_term = 'Dimer'
+            #Kvib = kappa_vib(temp)
+            #print Kvib
+            
         elif fluid== 'Decane':
             saft_term = 'three-bead'
         else:
@@ -154,7 +164,10 @@ def main():
         'SAFT1vle': 'SAFT-vle', 'SAFT1ift': 'SAFT-ift', 'SAFTflex2': 'SAFT Dimer (flexible)',\
         'OPLSmod': 'L-OPLS', 'TraPPEflex': 'TraPPE (flexible)',\
         'EPM2rigid': 'EPM2', 'EPM2flex': 'EPM2 (flexible)', 'TraPPErigid': 'TraPPE',\
-        'EPM2nc': 'EPM2 (no charges)', 'spcenc': 'SPC/E (no charges)'}
+        'EPM2nc': 'EPM2 (no charges)', 'spcenc': 'SPC/E (no charges)', 'EPM2vib': 'EPM2 (fully flexible)',\
+        'EPM2angle1': 'EPM2 ($k_{\\theta}=0.5$)','EPM2angle2': 'EPM2 ($k_{\\theta}=1.0$)','EPM2angle3': 'EPM2 ($k_{\\theta}=3.0$)',\
+        'EPM2angle4': 'EPM2 ($k_{\\theta}=6.405$)','EPM2bond1': 'EPM2 ($k_{b}=0.5$)','EPM2bond2': 'EPM2 ($k_{b}=1.0$)',\
+        'EPM2bond3': 'EPM2 ($k_{b}=3.0$)','EPM2bond4': 'EPM2 ($k_{b}=6.405$)'}
 
         try:
             NIST = read_nist(temp, fluid)
@@ -175,6 +188,9 @@ def main():
         name_plot = ''
         timestamp = 8000000
         deltat = 6000000
+
+        kVib, kRot = kappa_int_est(temp,fluid)
+        print kVib, kRot
         for m in model:
             print '\n\n++++++++++++++++++++++++ %s +++++++++++++++++++++\n' %m
             name_plot += m
@@ -184,16 +200,18 @@ def main():
             shear_dat = []
             shear_err = []
             ratio_dat = []
+            ratio_plus_dat = []
             bulk_dat = []
             bulk_err = []
+            bulk_plus_dat = []
             diff_dat = []
             for p in press:
                 for i in den:
                     print 'Evaluating %s, DEN=%s and P=%s.'%(m,i,p)
                     try:
                         results = bulk_properties(fluid,m,temp,p,i)
-
-                        press_dat.append(results.press())
+                        Pval = results.press()
+                        press_dat.append(Pval)
                         temp_dat.append(results.temp())
                         rho_dat_init.append(results.rho())
                         shear_dat.append(results.shear2()[0])
@@ -202,18 +220,30 @@ def main():
                         bulk_err.append(results.bulk2()[1])
                         ratio_dat.append(results.visc_ratio())
                         diff_dat.append(results.diff(timestamp,deltat)[-1])
+                        if fluid == 'Water' and m=='SAFT1':
+                            bulk_plus_dat.append(results.bulk2()[0]+(kVib+kRot))
+                            ratio_plus_dat.append((results.bulk2()[0]+(kVib+kRot))/results.shear2()[0])
+                        else:
+                            bulk_plus_dat.append(results.bulk2()[0]+kVib)
+                            ratio_plus_dat.append((results.bulk2()[0]+kVib)/results.shear2()[0])
+                        #print results.rho(), results.bulk2()[0], results.bulk2()[1]
                         print 'Data collection successful.\n'
                     except:
                         print 'ERROR: Maybe no data for %s, DEN=%s and P=%s exists.\n'%(m,i,p)
 
             
-    
             rho_dat, press_dat, press_err   = averaging(rho_dat_init, press_dat)
             rho_dat, temp_dat, temp_err     = averaging(rho_dat_init, temp_dat)
-            rho_dat, shear_dat, shear_err   = averaging(rho_dat_init, shear_dat)#, shear_err)
-            rho_dat, bulk_dat, bulk_err     = averaging(rho_dat_init, bulk_dat)#, bulk_err)
+            if len(den)==1:
+                rho_dat, shear_dat, shear_err   = averaging3(rho_dat_init, shear_dat, shear_err)
+                rho_dat, bulk_dat, bulk_err     = averaging3(rho_dat_init, bulk_dat, bulk_err)
+            else:
+                rho_dat, shear_dat, shear_err   = averaging(rho_dat_init, shear_dat)#, shear_err)
+                rho_dat, bulk_dat, bulk_err     = averaging(rho_dat_init, bulk_dat)#, bulk_err)
             rho_dat, ratio_dat, ratio_err   = averaging(rho_dat_init, ratio_dat)
             rho_dat, diff_dat, diff_err     = averaging(rho_dat_init, diff_dat)
+            rho_dat, bulk_plus_dat, ratio_err   = averaging(rho_dat_init, bulk_plus_dat)
+            rho_dat, ratio_plus_dat, ratio_err   = averaging(rho_dat_init, ratio_plus_dat)
             
             print 'Diffusion for %s' % m,'at P=1bar:', diff_dat[0], '+/-', diff_err[0]
             print 'Shear viscosity for %s' % m,'at P=1bar:', shear_dat[0], '+/-', shear_err[0]
@@ -229,60 +259,100 @@ def main():
             print 'Average viscosity ratio for %s' % m, np.mean(ratio_dat), '+/-', np.std(np.array(ratio_dat))/np.sqrt(len(ratio_dat))
 
             # Plotting
-            ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax1.set_xlabel('P (bar)')
             ax1.set_ylabel('$\\rho$ (g/cm$^3$)')
             ax1.legend()
 
-            ax2.errorbar(rho_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax2.errorbar(rho_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax2.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax2.set_ylabel('$\eta$ (mPa.s)')
             ax2.legend()
 
-            ax3.errorbar(rho_dat, bulk_dat, yerr=bulk_err,linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax3.errorbar(rho_dat, bulk_dat, yerr=bulk_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax3.set_xlabel('$\\rho$ (g/cm$^3$)')
-            ax3.set_ylabel('$\kappa$ (mPa.s)')
+            ax3.set_ylabel('$\kappa_{\mathrm{conf}}$ (mPa.s)')
             #if fluid == 'CO2' and 'TraPPE' in model:
                 #ax3.set_yscale("log", nonposy='clip')
                 #ax3.set_ylim(ymin=0.1)
                 #ax3.set_xlim(0.78,1.1)
                 #ax3_inset=fig3.add_axes([0.67,0.3, 0.2,0.2])
-                #ax3_inset.plot(rho_dat, bulk_dat, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+                #ax3_inset.plot(rho_dat, bulk_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
                 #ax3_inset.set_xlim(0,0.35)
                 #ax3_inset.set_ylim(0,1)
             ax3.legend()
 
-            ax4.errorbar(rho_dat, diff_dat, yerr=diff_err,linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax4.errorbar(rho_dat, diff_dat, yerr=diff_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             #ax4.set_ylim(0,100)
             ax4.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax4.set_ylabel('$D_s$ ($10^{-9}m^2/s$)')
             ax4.legend()
             #ax4_inset=fig4.add_axes([0.22,0.22, 0.34,0.34])
-            #ax4_inset.plot(rho_dat, diff_dat, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            #ax4_inset.plot(rho_dat, diff_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             #ax4_inset.set_xlim(0,0.12)
             #ax4_inset.set_ylim(100,)
 
-            ax5.errorbar(rho_dat, ratio_dat, yerr=ratio_err, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax5.errorbar(rho_dat, ratio_dat, yerr=ratio_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax5.set_xlabel('$\\rho$ (g/cm$^3$)')
-            ax5.set_ylabel('$\kappa$/$\eta$')
+            ax5.set_ylabel('$\kappa_{\mathrm{conf}}$/$\eta$')
             ax5.legend()
 
-            ax6.errorbar(rho_dat, temp_dat, yerr=temp_err,linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax6.errorbar(rho_dat, temp_dat, yerr=temp_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax6.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax6.set_ylabel('T (K)')
             ax6.legend(loc='upper left')
 
-            ax7.errorbar(press_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax7.errorbar(press_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax7.set_xlabel('P (bar)')
             ax7.set_ylabel('$\eta$ (mPa.s)')
             ax7.legend()
 
-            ax8.errorbar(press_dat, bulk_dat, yerr=bulk_err,linestyle = 'None', marker=markers[count], label='%s'%(legend_names[m]))
+            ax8.errorbar(press_dat, bulk_dat, yerr=bulk_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax8.set_xlabel('P (bar)')
             ax8.set_ylabel('$\kappa$ (mPa.s)')
             ax8.legend()
 
-            count +=1
+
+            ax9.errorbar(rho_dat, bulk_plus_dat, yerr=bulk_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
+            ax9.set_xlabel('$\\rho$ (g/cm$^3$)')
+            ax9.set_ylabel('$\kappa$ (mPa.s)')
+            ax9.legend()
+
+            ax10.errorbar(rho_dat, ratio_plus_dat, yerr=ratio_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
+            ax10.set_xlabel('$\\rho$ (g/cm$^3$)')
+            ax10.set_ylabel('$\kappa$/$\eta$')
+            ax10.legend()
+
+            if count == 0:
+                count+= 2
+            else:
+                count +=1
+
+        if fluid=='Water' and temp=='298':
+            lower_bound = [2.7,2.7]
+            upper_bound = [3.25,3.25]
+            rho_min = np.min(rho_dat)
+            rho_max = np.max(rho_dat)
+            ax5.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
+            ax5.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+            ax10.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
+            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+        elif fluid=='Decane' and temp=='300':
+            lower_bound = [3.23,3.23]
+            upper_bound = [3.29,3.29]
+            rho_min = np.min(rho_dat)
+            rho_max = np.max(rho_dat)
+            ax5.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
+            ax5.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+            ax10.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
+            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+        elif fluid=='CO2' and temp=='300':
+            lower_bound = [843,843]
+            upper_bound = [3849,3849]
+            rho_min = np.min(rho_dat)
+            rho_max = np.max(rho_dat)
+            ax10.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
+            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
 
         if png == 'y':
             fig1.savefig('PLOTS/PNG/P_%s_T%s_%s.png'%(fluid, temp,name_plot))
@@ -293,6 +363,8 @@ def main():
             fig6.savefig('PLOTS/PNG/T_%s_T%s_%s.png'%(fluid, temp,name_plot))
             fig7.savefig('PLOTS/PNG/SV_vP_%s_T%s_%s.png'%(fluid, temp,name_plot))
             fig8.savefig('PLOTS/PNG/BV_vP_%s_T%s_%s.png'%(fluid, temp,name_plot))
+            fig9.savefig('PLOTS/PNG/BVplus_%s_T%s_%s.png'%(fluid, temp,name_plot))
+            fig10.savefig('PLOTS/PNG/BSplus_%s_T%s_%s.png'%(fluid, temp,name_plot))
         else:
             fig1.savefig('PLOTS/P_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig2.savefig('PLOTS/SV_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
@@ -302,7 +374,10 @@ def main():
             fig6.savefig('PLOTS/T_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig7.savefig('PLOTS/SV_vP_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig8.savefig('PLOTS/BV_vP_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-
+            fig9.savefig('PLOTS/BVplus_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
+            fig10.savefig('PLOTS/BSplus_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
+        print 'The vibrational bulk viscosity contribution is:', kVib
+        print 'The rotational bulk viscosity contribution is:', kRot
 
     elif press == 'None':
         if fluid=='Water_Graphene':
@@ -382,6 +457,7 @@ def main():
             for e in eps:
                 print '\n\n++++++++++++++++++++++++ eps = %s +++++++++++++++++++++\n' %e
                 name_plot += e
+                z_dat = []
                 sep_dat = []
                 temp_dat =[]
                 rho_dat = []
@@ -410,13 +486,14 @@ def main():
                             timestamp = 800000
                             deltat = 600000
                             
+                            
                             sep_dat.append(results.separation())
                             temp_dat.append(results.temp())
-                            rho_dat_init.append(results.rho())
+                            rho_dat.append(results.rho())
                             shear_dat.append(results.shear2()[0])
                             bulk_dat.append(results.bulk2()[0])
                             ratio_dat.append(results.visc_ratio())
-                            diff_dat.append(results.diff(timestamp,deltat)[-1])
+                            diff_dat.append(1e9*results.diff2())#(timestamp,deltat)[-1])
                             wa_dat.append(results.wa())
                             f1 = results.fric(fric_coords[0])
                             f2 = results.fric(fric_coords[1])
@@ -426,6 +503,7 @@ def main():
                             fricinv_dat.append(2/(f1+f2))
                             zcoord, densprof = results.profile()
                             fw_dat.append((results.wa()*results.separation())/(2*results.diff(timestamp,deltat)[-1]))
+                            z_dat.append(int(s))
 
                             ax14.plot(zcoord, densprof, label='$\epsilon$ = %s, $\Delta z$ =%s\AA'%(e,s))
                             ax14.set_xlabel('z (\AA)')
@@ -436,18 +514,19 @@ def main():
                             print 'There was an error. Maybe no data for %s and s=%s exists for eps=%s.'%(m,s,e)
 
 
+                znew_dat, sep_dat, sep_err       = averaging(z_dat, sep_dat)
+                znew_dat, temp_dat, temp_err     = averaging(z_dat, temp_dat)
+                znew_dat, shear_dat, shear_err   = averaging(z_dat, shear_dat)#, shear_err)
+                znew_dat, bulk_dat, bulk_err     = averaging(z_dat, bulk_dat)#, bulk_err)
+                znew_dat, ratio_dat, ratio_err   = averaging(z_dat, ratio_dat)
+                znew_dat, diff_dat, diff_err     = averaging(z_dat, diff_dat)
+                znew_dat, wa_dat, wa_err         = averaging(z_dat, wa_dat)
+                znew_dat, fric_dat, fric_err     = averaging(z_dat, fric_dat)
+                znew_dat, fw_dat, fw_err         = averaging(z_dat, fw_dat)
+                znew_dat, rho_dat, rho_err       = averaging(z_dat, rho_dat)
 
-                rho_dat, sep_dat, sep_err       = averaging(rho_dat_init, sep_dat)
-                rho_dat, temp_dat, temp_err     = averaging(rho_dat_init, temp_dat)
-                rho_dat, shear_dat, shear_err   = averaging(rho_dat_init, shear_dat)#, shear_err)
-                rho_dat, bulk_dat, bulk_err     = averaging(rho_dat_init, bulk_dat)#, bulk_err)
-                rho_dat, ratio_dat, ratio_err   = averaging(rho_dat_init, ratio_dat)
-                rho_dat, diff_dat, diff_err     = averaging(rho_dat_init, diff_dat)
-                rho_dat, wa_dat, wa_err         = averaging(rho_dat_init, wa_dat)
-                rho_dat, fric_dat, fric_err     = averaging(rho_dat_init, fric_dat)
-                rho_dat, fw_dat, fw_err         = averaging(rho_dat_init, fw_dat)
             
-                print fw_err, fric_err
+                print znew_dat, sep_dat, rho_dat, fric_dat
 
                 #print sep_dat, rho_dat, wa_dat, temp_dat
                 legend_names = {'spce':'SPC/E', 'tip4p':'TIP4P/2005', 'TraPPE': 'TraPPE', 'SAFT': 'SAFT Dimer', \
@@ -456,74 +535,74 @@ def main():
                     '12_6_23_666': '12-6 model (SAFT exponents)', 'lj':'LJ'}
                 legend_name = '$\epsilon$ = %s (%s)'%(e,legend_names[m])
                 # Plotting
-                ax1.plot(sep_dat, rho_dat, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax1.plot(sep_dat, rho_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax1.legend()
 
-                ax2.errorbar(sep_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], label=legend_name)
-                #ax2.plot(sep_dat, shear2_dat, linestyle = 'None', marker=markers[count], c='g', label='%s'%(m))
+                ax2.errorbar(sep_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
+                #ax2.plot(sep_dat, shear2_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], c='g', label='%s'%(m))
                 ax2.set_xlabel('$\Delta z$ (\AA)')
                 #ax2.set_xlim(0,18)
                 ax2.set_ylabel('$\eta$ (mPa.s)')
                 ax2.legend(loc='upper right')
 
-                ax3.errorbar(sep_dat, bulk_dat, yerr=bulk_err, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax3.errorbar(sep_dat, bulk_dat, yerr=bulk_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax3.set_xlabel('$\Delta z$ (\AA)')
                 ax3.set_ylabel('$\kappa$ (mPa.s)')
                 ax3.legend(loc='upper left')
 
-                ax4.errorbar(sep_dat, diff_dat, yerr=diff_err, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax4.errorbar(sep_dat, diff_dat, yerr=diff_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 #ax4.set_xlim(0,18)
                 ax4.set_xlabel('$\Delta z$ (\AA)')
                 ax4.set_ylabel('$D_s$ ($10^{-9}m^2/s$)')
                 ax4.legend(loc='upper left')
 
-                ax5.plot(rho_dat, shear_dat, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax5.plot(rho_dat, shear_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax5.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax5.set_ylabel('$\eta$ (mPa.s)')
                 ax5.legend(loc='upper left')
 
-                ax6.plot(rho_dat, bulk_dat, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax6.plot(rho_dat, bulk_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax6.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax6.set_ylabel('$\kappa$ (mPa.s)')
                 ax6.legend(loc='upper left')
 
-                ax7.plot(rho_dat, diff_dat, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax7.plot(rho_dat, diff_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 #ax7.set_ylim(0,100)
                 ax7.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax7.set_ylabel('$D_s$ ($10^{-9}m^2/s$)')
                 ax7.legend()
 
-                ax8.errorbar(sep_dat, ratio_dat, yerr=ratio_err, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax8.errorbar(sep_dat, ratio_dat, yerr=ratio_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax8.set_xlabel('$\Delta z$ (\AA)')
                 ax8.set_ylabel('$\kappa$/$\eta$')
                 ax8.legend(loc='upper left')
 
-                ax9.plot(rho_dat, ratio_dat, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax9.plot(rho_dat, ratio_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax9.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax9.set_ylabel('$\kappa$/$\eta$')
                 ax9.legend(loc='upper left')
 
-                ax10.errorbar(sep_dat, wa_dat, yerr=wa_err, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax10.errorbar(sep_dat, wa_dat, yerr=wa_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax10.set_xlabel('$\Delta z$ (\AA)')
                 ax10.set_ylabel('$W_A$ (N/m)')
                 ax10.legend()
 
-                ax11.plot(rho_dat, wa_dat, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax11.plot(rho_dat, wa_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax11.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax11.set_ylabel('$W_A$ ($10^{-3}$ N/m)')
                 ax11.legend()
 
-                ax12.errorbar(sep_dat, fric_dat, yerr=fric_err, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax12.errorbar(sep_dat, fric_dat, yerr=fric_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax12.set_xlabel('$\Delta z$ (\AA)')
                 ax12.set_ylabel('$\lambda$ ($10^4$ Ns/m$^3$)')
                 ax12.legend()
 
-                ax13.plot(rho_dat, fric_dat, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax13.plot(rho_dat, fric_dat, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax13.set_xlabel('$\\rho$ (g/cm$^3$)')
                 ax13.set_ylabel('$\lambda$ ($10^4$ Ns/m$^3$)')
                 ax13.legend()
 
-                ax15.errorbar(fw_dat, fric_dat, yerr=fric_err, xerr=fw_err, linestyle = 'None', marker=markers[count], label=legend_name)
+                ax15.errorbar(fw_dat, fric_dat, yerr=fric_err, xerr=fw_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label=legend_name)
                 ax15.set_xlabel('$W_A$D/$D_s$')
                 ax15.set_ylabel('$\lambda$ ($10^4$ Ns/m$^3$)')
                 ax15.legend()
@@ -565,5 +644,6 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.path.append('/home/fred/SCRIPTS')
+    sys.path.append('/home/fred/SCRIPTS/Python')
+    from plotting_params import *
     main()
