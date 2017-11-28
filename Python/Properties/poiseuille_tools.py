@@ -78,6 +78,7 @@ def read_log_nemd(f,w,m,e,s,force):
 def prop(PROP,file,factor,f,w,m,e,s):
 
     filename = '{}_{}/{}.eq_{}_eps{}_s{}_1'.format(f,w,file,m,e,s)
+    tlim = 800000
 
     df = pd.read_csv(filename, delimiter=' ', skiprows=2)
     #read first two lines
@@ -85,21 +86,14 @@ def prop(PROP,file,factor,f,w,m,e,s):
         _, line2 = f.readline(), f.readline()
     cols = line2.lstrip('#').strip().split(' ')
     df.columns = cols
-    Prop = df['{}'.format(PROP)]
-    Prop = Prop.tolist()
-    time = df['TimeStep']
-    time = time.tolist()
+    df   = df[df.TimeStep>tlim]
+    Prop = df['{}'.format(PROP)].tolist()
+    time = df['TimeStep'].tolist()
 
-    Prop_list = []
-    count = 0
-    tlim = 800000
-    for t,p in itertools.izip(time, Prop):
-        if t > tlim:
-            Prop_list.append(p/factor) # correct dimensions etc
-            count += 1
-    Prop_val, Prop_err = blockAverage(Prop_list)
+
+    Prop_val, Prop_err = blockAverage(Prop)
     print PROP, ':', Prop_val, '+/-', Prop_err
-    return Prop_val, Prop_err, Prop_list
+    return Prop_val, Prop_err, Prop 
 
 def fric(f,w,m,e,s):
     Factor = 1 # 10000 if we want 10^4
