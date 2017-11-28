@@ -141,6 +141,8 @@ def main():
         ax7  = fig7.add_axes([0.1,0.15,0.8,0.75])
         fig8 = plt.figure(figsize=fig_size)
         ax8  = fig8.add_axes([0.1,0.15,0.8,0.75])
+        fig8a = plt.figure(figsize=fig_size)
+        ax8a  = fig8a.add_axes([0.1,0.15,0.8,0.75])
         fig9 = plt.figure(figsize=fig_size)
         ax9  = fig9.add_axes([0.1,0.15,0.8,0.75])
         fig10 = plt.figure(figsize=fig_size)
@@ -173,9 +175,9 @@ def main():
             NIST = read_nist(temp, fluid)
 
             ax1.plot(NIST[1], NIST[0], linestyle = 'dashed', marker='+', label='NIST', c='k')
-
+            #shear, density
             ax2.plot(NIST[0], NIST[2], linestyle = 'dashed', marker='+', label='NIST', c='k')
-
+            # shear, press
             ax7.plot(NIST[1], NIST[2], linestyle = 'dashed', marker='+', label='NIST', c='k')
 
             #ax4.plot(NIST[0], NIST[3], linestyle = 'dashed', label='NIST', c='k')
@@ -220,7 +222,7 @@ def main():
                         bulk_err.append(results.bulk2()[1])
                         ratio_dat.append(results.visc_ratio())
                         diff_dat.append(results.diff(timestamp,deltat)[-1])
-                        if fluid == 'Water' and m=='SAFT1':
+                        if m=='SAFT1':
                             bulk_plus_dat.append(results.bulk2()[0]+(kVib+kRot))
                             ratio_plus_dat.append((results.bulk2()[0]+(kVib+kRot))/results.shear2()[0])
                         else:
@@ -242,15 +244,18 @@ def main():
                 rho_dat, bulk_dat, bulk_err     = averaging(rho_dat_init, bulk_dat)#, bulk_err)
             rho_dat, ratio_dat, ratio_err   = averaging(rho_dat_init, ratio_dat)
             rho_dat, diff_dat, diff_err     = averaging(rho_dat_init, diff_dat)
-            rho_dat, bulk_plus_dat, ratio_err   = averaging(rho_dat_init, bulk_plus_dat)
-            rho_dat, ratio_plus_dat, ratio_err   = averaging(rho_dat_init, ratio_plus_dat)
+            rho_dat, bulk_plus_dat, bulk_plus_err   = averaging(rho_dat_init, bulk_plus_dat)
+            rho_dat, ratio_plus_dat, ratio_plus_err   = averaging(rho_dat_init, ratio_plus_dat)
             
             print 'Diffusion for %s' % m,'at P=1bar:', diff_dat[0], '+/-', diff_err[0]
             print 'Shear viscosity for %s' % m,'at P=1bar:', shear_dat[0], '+/-', shear_err[0]
             print 'Bulk viscosity for %s' % m,'at P=1bar:', bulk_dat[0], '+/-', bulk_err[0]
             print 'Viscosity ratio for %s' % m,'at P=1bar:', ratio_dat[0], '+/-', ratio_err[0]
             print 'Final viscosity ratio for %s' % m, ratio_dat[-1], '+/-', ratio_err[-1]
-            print ratio_dat, ratio_err
+            print ratio_plus_dat, ratio_plus_err
+            print press_dat
+            print shear_dat, shear_err
+            print bulk_plus_dat, bulk_plus_err
             print "-------------------------------"
 
             print 'Average diffusion for %s' % m, np.mean(diff_dat), '+/-', np.std(np.array(diff_dat))/np.sqrt(len(diff_dat))
@@ -272,6 +277,11 @@ def main():
             ax3.errorbar(rho_dat, bulk_dat, yerr=bulk_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax3.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax3.set_ylabel('$\kappa_{\mathrm{conf}}$ (mPa.s)')
+            if m=='EPM2rigid':
+                rho_min = np.min(rho_dat)
+                rho_max = np.max(rho_dat)
+                rho_fit, bulk_fit, params = poly_fit(rho_dat, bulk_dat, rho_min, rho_max)
+                ax3.plot(rho_fit, bulk_fit, linestyle='dotted', lw=3, c='k')#, label='$\\rho^2$ fit')
             #if fluid == 'CO2' and 'TraPPE' in model:
                 #ax3.set_yscale("log", nonposy='clip')
                 #ax3.set_ylim(ymin=0.1)
@@ -309,30 +319,38 @@ def main():
 
             ax8.errorbar(press_dat, bulk_dat, yerr=bulk_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax8.set_xlabel('P (bar)')
-            ax8.set_ylabel('$\kappa$ (mPa.s)')
+            ax8.set_ylabel('$\kappa_{\mathrm{conf}}$ (mPa.s)')
             ax8.legend()
 
+            ax8a.errorbar(press_dat, bulk_plus_dat, yerr=bulk_plus_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
+            ax8a.set_xlabel('P (bar)')
+            ax8a.set_ylabel('$\kappa$ (mPa.s)')
+            ax8a.legend()
 
-            ax9.errorbar(rho_dat, bulk_plus_dat, yerr=bulk_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
+            ax9.errorbar(rho_dat, bulk_plus_dat, yerr=bulk_plus_err, linestyle = 'None', marker='None', c='white', label='%s'%(legend_names[m]))
+            if m=='EPM2rigid':
+                bulk_plus_fit = np.array(bulk_fit)+np.min(bulk_plus_dat)
+                #ax9.plot(rho_fit, bulk_plus_fit, linestyle='dashed', lw=3, c='g')#, label='$\\rho^2$ fit')
             ax9.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax9.set_ylabel('$\kappa$ (mPa.s)')
             ax9.legend()
 
-            ax10.errorbar(rho_dat, ratio_plus_dat, yerr=ratio_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
+            ax10.errorbar(rho_dat, ratio_plus_dat, yerr=ratio_plus_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax10.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax10.set_ylabel('$\kappa$/$\eta$')
             ax10.legend()
 
-            if count == 0:
+            if count == 0 and fluid!='CO2':
                 count+= 2
             else:
                 count +=1
 
         if fluid=='Water' and temp=='298':
             lower_bound = [2.7,2.7]
-            upper_bound = [3.25,3.25]
+            upper_bound = [2.8,2.8]
             rho_min = np.min(rho_dat)
             rho_max = np.max(rho_dat)
+
             ax5.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
             ax5.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
             ax10.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
@@ -351,6 +369,15 @@ def main():
             upper_bound = [3849,3849]
             rho_min = np.min(rho_dat)
             rho_max = np.max(rho_dat)
+            # add constant kint to plot
+            rho_tmp = np.linspace(rho_min-0.1*rho_min, rho_max+0.01*rho_max,10)
+            kInt_list_tmp = [(kVib+kRot)]*len(rho_tmp)
+            kInt_list = [(kVib+kRot)]*len(NIST[0])
+            kInt_ratio = np.divide(np.array(kInt_list),NIST[2])
+            
+            ax9.plot(rho_tmp, kInt_list_tmp, linestyle='dotted', lw=3, c='k')
+            ax9.set_xlim(rho_min-0.1*rho_min, rho_max+0.01*rho_max)
+            #ax10.plot(NIST[0], kInt_ratio, linestyle='dotted', lw=3, c='k')
             ax10.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
             ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
 
@@ -363,19 +390,21 @@ def main():
             fig6.savefig('PLOTS/PNG/T_%s_T%s_%s.png'%(fluid, temp,name_plot))
             fig7.savefig('PLOTS/PNG/SV_vP_%s_T%s_%s.png'%(fluid, temp,name_plot))
             fig8.savefig('PLOTS/PNG/BV_vP_%s_T%s_%s.png'%(fluid, temp,name_plot))
+            fig8a.savefig('PLOTS/PNG/BVplus_vP_%s_T%s_%s.png'%(fluid, temp,name_plot))
             fig9.savefig('PLOTS/PNG/BVplus_%s_T%s_%s.png'%(fluid, temp,name_plot))
             fig10.savefig('PLOTS/PNG/BSplus_%s_T%s_%s.png'%(fluid, temp,name_plot))
         else:
             fig1.savefig('PLOTS/P_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-            fig2.savefig('PLOTS/SV_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
+            fig2.savefig('PLOTS/SV_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
             fig3.savefig('PLOTS/BV_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig4.savefig('PLOTS/Ds_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig5.savefig('PLOTS/BS_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig6.savefig('PLOTS/T_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig7.savefig('PLOTS/SV_vP_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig8.savefig('PLOTS/BV_vP_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-            fig9.savefig('PLOTS/BVplus_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-            fig10.savefig('PLOTS/BSplus_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
+            fig8a.savefig('PLOTS/BVplus_vP_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
+            fig9.savefig('PLOTS/BVplus_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
+            fig10.savefig('PLOTS/BSplus_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
         print 'The vibrational bulk viscosity contribution is:', kVib
         print 'The rotational bulk viscosity contribution is:', kRot
 

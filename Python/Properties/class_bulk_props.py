@@ -5,7 +5,7 @@ import csv
 import pandas as pd
 import itertools
 from scipy.integrate import simps
-
+from scipy.optimize import curve_fit
 
 
 def read_log(f,m,T,P,idx,rhos):
@@ -165,18 +165,22 @@ def press_fluct(p):
 
     temp_list = []
     vol_list = []
+    vol2_list = []
     for t,v,temp in itertools.izip(time, vol, temp):
         if t > 70000:
             vol_list.append(v)
+            vol2_list.append(v*v)
             temp_list.append(temp)
 
 
     vol_mean   = np.mean(np.array(vol_list))
+    vol2_mean   = np.mean(np.array(vol2_list))
+    vol_mean2   = np.mean(np.array(vol_list))**2
     vol_var    = np.var(np.array(vol_list))
     temp_mean  = np.mean(np.array(temp_list))
 
 
-    return temp_mean, vol_mean, vol_var
+    return temp_mean, vol_mean, vol_var, vol2_mean
 
 def mean_vals(p):
     filename = 'thermo_p{}.dat'.format(p)
@@ -193,7 +197,7 @@ def mean_vals(p):
         _, line2 = f.readline(), f.readline()
     cols = line2.lstrip('#').strip().split(' ')
     df.columns = cols
-    vol  = df['v_vol_one']*1e-30
+    vol  = df['v_vol_one']*1e-30 # m^3
     vol  = vol.tolist()
     press = df['v_pre_one']*1e5
     press = press.tolist()
@@ -408,6 +412,18 @@ def kappa_vib(T):
 
     return kappaVib
 
+def poly_fit(x, y, xmin, xmax):
+    params, cov = curve_fit(f2, np.array(x), np.array(y))
+    #slope_err = np.sqrt(np.diag(cov))
+    xdat = np.linspace(xmin, xmax, 100)
+    fit = []
+    for x in xdat:
+        fit.append(params[0]*x**2)
+    return xdat, fit, params
+
+def f2(x, A):
+    return A*x**2
+
 # create class
 
 class bulk_properties:
@@ -484,6 +500,7 @@ class bulk_properties:
         #shear_val = np.mean(np.array(shear_list))
         #shear_err = np.std(np.array(shear_list))/np.sqrt(len(shear_list))
         shear_val, shear_err = blockAverage(shear_list)
+        #print 'Shear viscosity at P=',self.P , 'is', shear_val, '+/-', shear_err
         return shear_val, shear_err
 
     def bulk(self):
@@ -528,6 +545,7 @@ class bulk_properties:
         #bulk_val = np.mean(np.array(bulk_list))
         #bulk_err = np.std(np.array(bulk_list))/np.sqrt(len(bulk_list))
         bulk_val, bulk_err = blockAverage(bulk_list)
+        #print 'Bulk viscosity at P=',self.P , 'is', shear_val, '+/-', shear_err
         return bulk_val, bulk_err
 
 

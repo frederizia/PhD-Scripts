@@ -3,7 +3,6 @@
 from __future__ import division
 import numpy as np
 from class_bulk_props import *
-from plotting_params import *
 import matplotlib.pyplot as plt
 import argparse
 import sys
@@ -34,17 +33,19 @@ def main():
         kB = 1.380648813e-23
         for p in press:
             print '+++++++++++++++++ p = {} ++++++++++++++++++'.format(p)
-            T, V, varV = press_fluct(p)
-            comp = 1e5*varV/(kB*T*V)
+            T, V, varV, V2 = press_fluct(p)
+            comp = varV/(kB*T*V)
+            #comp = (V2-V**2)/(kB*T*V)
 
-            print 'The compressibility is:', comp
-            print 'The bulk modulus is:', (1/comp)/1e9, 'GPa'
+            print 'The compressibility is:', comp, 'bar^-1'
+            print 'The bulk modulus is:', 1e-5*(1/comp)/1e9, 'GPa'
 
     elif method == 2:
         print 'Using fit at different pressures'
         press_vals = []
         vol_vals = []
         for p in press:
+            print 'Reading in p={}....'.format(p)
             vol_val, press_val = mean_vals(p) 
             vol_vals.append(vol_val)
             press_vals.append(press_val)
@@ -52,14 +53,14 @@ def main():
         m, v0 = np.polyfit(np.array(press_vals), np.array(vol_vals),1)
 
         comp = (-1/v0)*m
-        print 'The compressibility is:', comp
+        print 'The compressibility is:', comp/1e5, 'bar^-1'
         print 'The bulk modulus is:', (1/comp)/1e9, 'GPa'
 
         fitted = poly1(press_vals, m, v0)
         plt.figure()
         plt.plot(press_vals, vol_vals, linestyle='None', marker='D')
         plt.plot(press_vals, fitted)
-        #plt.show()
+        plt.show()
 
 
     else:
@@ -70,5 +71,6 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.path.append('/home/fred/SCRIPTS')
+    sys.path.append('/home/fred/SCRIPTS/Python')
+    from plotting_params import *
     main()

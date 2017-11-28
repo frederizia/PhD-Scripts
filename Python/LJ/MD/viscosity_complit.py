@@ -211,7 +211,7 @@ def main():
                 label = '$r_{\mathrm{cut}}$ = %s'%(rc)
                 colidx = idx
             else:
-                label = 'T = {}'.format(T)
+                label = 'T$^*$ = {}'.format(T)
                 colidx=idx*2
 
             # PLOTTING

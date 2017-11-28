@@ -50,6 +50,10 @@ def main():
         time_conv = 1e-12
         space_conv = 1e-10
         dt = 0.0005
+    elif units == 'metal2':
+        time_conv = 1e-12
+        space_conv = 1e-10
+        dt = 0.001
     elif units == 'real':
         time_conv = 1e-15
         space_conv = 1e-10
