@@ -249,9 +249,12 @@ def main():
 
 
     #ax3.legend(loc='upper center', ncol=3, fontsize=18)
-    fig1.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot1,nameT,namerc))
-    fig2.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot2,nameT,namerc))
-    fig3.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot3,nameT,namerc))
+    #fig1.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot1,nameT,namerc))
+    #fig2.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot2,nameT,namerc))
+    #fig3.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot3,nameT,namerc))
+    fig1.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot1,nameT,namerc),format='eps', dpi=1000)
+    fig2.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot2,nameT,namerc),format='eps', dpi=1000)
+    fig3.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot3,nameT,namerc),format='eps', dpi=1000)
 
     #plt.show()
 

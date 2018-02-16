@@ -52,9 +52,9 @@ def main():
 
         m, v0 = np.polyfit(np.array(press_vals), np.array(vol_vals),1)
 
-        comp = (-1/v0)*m
-        print 'The compressibility is:', comp/1e5, 'bar^-1'
-        print 'The bulk modulus is:', (1/comp)/1e9, 'GPa'
+        comp = (-1/vol_vals[0])*m#(-1/v0)*m
+        print 'The compressibility is:', comp, 'bar^-1'
+        print 'The bulk modulus is:', 1e-5*(1/comp)/1e9, 'GPa'
 
         fitted = poly1(press_vals, m, v0)
         plt.figure()

@@ -3,11 +3,13 @@
 from __future__ import division
 import numpy as np
 import matplotlib
-#matplotlib.use('agg')
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import argparse
 from class_bulk_props import *
 import sys
+import csv
+from itertools import izip,imap
 
 def GetArgs():
     parser = argparse.ArgumentParser()
@@ -69,6 +71,8 @@ def averaging(k,v):
     k = averages.keys()
     v = averages.values()
     e = errors.values()
+    sorti = np.argsort(k)
+    k, v, e = np.array(k)[sorti], np.array(v)[sorti], np.array(e)[sorti]
     return k,v,e
 
 def averaging3(k,v,e):
@@ -111,6 +115,7 @@ def main():
     fig_size = (9,7)
 
     colours=['#313695', '#4575b4', '#74add1',\
+    '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026','#4575b4', '#74add1',\
     '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026']
 
 
@@ -159,26 +164,27 @@ def main():
             saft_term = ''
         markers = ['D', 's', 'v', '^', 'd', '*']
         legend_names = {'spce':'SPC/E', 'tip4p':'TIP4P/2005', 'TraPPE': 'TraPPE', 'SAFT': 'SAFT %s'%saft_term, \
-        'SAFT1': 'SAFT Monomer', 'TraPPEnc': 'TraPPE (no charges)', 'OPLS': 'OPLS',\
+        'SAFT1': 'SAFT Monomer', 'TraPPEnc': 'TraPPE (no charges)', 'OPLS': 'OPLS (flexible)',\
         'SAFT1_rc2.5': 'SAFT (rc=2.5)', '12_6':'12-6 model', '12_6_rcsaft': '12-6 model (rc from SAFT)',\
         '12_6_23_666': '12-6 model (SAFT exponents)',
         'SAFTflex': 'SAFT Dimer (flexible II)', 'EPM2':'EPM2', 'SAFTrigid': 'SAFT (rigid)',\
         'SAFT1vle': 'SAFT-vle', 'SAFT1ift': 'SAFT-ift', 'SAFTflex2': 'SAFT Dimer (flexible)',\
-        'OPLSmod': 'L-OPLS', 'TraPPEflex': 'TraPPE (flexible)',\
+        'OPLSmod': 'L-OPLS (flexible)', 'TraPPEflex': 'TraPPE (flexible)',\
         'EPM2rigid': 'EPM2', 'EPM2flex': 'EPM2 (flexible)', 'TraPPErigid': 'TraPPE',\
         'EPM2nc': 'EPM2 (no charges)', 'spcenc': 'SPC/E (no charges)', 'EPM2vib': 'EPM2 (fully flexible)',\
         'EPM2angle1': 'EPM2 ($k_{\\theta}=0.5$)','EPM2angle2': 'EPM2 ($k_{\\theta}=1.0$)','EPM2angle3': 'EPM2 ($k_{\\theta}=3.0$)',\
         'EPM2angle4': 'EPM2 ($k_{\\theta}=6.405$)','EPM2bond1': 'EPM2 ($k_{b}=0.5$)','EPM2bond2': 'EPM2 ($k_{b}=1.0$)',\
-        'EPM2bond3': 'EPM2 ($k_{b}=3.0$)','EPM2bond4': 'EPM2 ($k_{b}=6.405$)'}
+        'EPM2bond3': 'EPM2 ($k_{b}=3.0$)','EPM2bond4': 'EPM2 ($k_{b}=6.405$)',\
+        'OPLSrigid': 'OPLS','OPLSmodrigid': 'L-OPLS', 'spcerattle': 'SPC/E (RATTLE)'}
 
         try:
             NIST = read_nist(temp, fluid)
 
-            ax1.plot(NIST[1], NIST[0], linestyle = 'dashed', marker='+', label='NIST', c='k')
+            ax1.plot(NIST[1], NIST[0], linestyle = 'dashed', marker='None', label='NIST', c='k')
             #shear, density
-            ax2.plot(NIST[0], NIST[2], linestyle = 'dashed', marker='+', label='NIST', c='k')
+            ax2.plot(NIST[0], NIST[2], linestyle = 'dashed', marker='None', label='NIST', c='k')
             # shear, press
-            ax7.plot(NIST[1], NIST[2], linestyle = 'dashed', marker='+', label='NIST', c='k')
+            ax7.plot(NIST[1], NIST[2], linestyle = 'dashed', marker='None', label='NIST', c='k')
 
             #ax4.plot(NIST[0], NIST[3], linestyle = 'dashed', label='NIST', c='k')
         except IOError:
@@ -200,6 +206,8 @@ def main():
             temp_dat =[]
             rho_dat_init = []
             shear_dat = []
+            shear_msd_dat = []
+            shear_vacf_dat = []
             shear_err = []
             ratio_dat = []
             ratio_plus_dat = []
@@ -207,6 +215,7 @@ def main():
             bulk_err = []
             bulk_plus_dat = []
             diff_dat = []
+            diff_vacf_dat = []
             for p in press:
                 for i in den:
                     print 'Evaluating %s, DEN=%s and P=%s.'%(m,i,p)
@@ -216,9 +225,10 @@ def main():
                         press_dat.append(Pval)
                         temp_dat.append(results.temp())
                         rho_dat_init.append(results.rho())
-                        shear_dat.append(results.shear2()[0])
+                        shear_dat.append(results.shear())
                         shear_err.append(results.shear2()[1])
-                        bulk_dat.append(results.bulk2()[0])
+                        shear_msd_dat.append(results.shear_diff('msd'))
+                        bulk_dat.append(results.bulk())
                         bulk_err.append(results.bulk2()[1])
                         ratio_dat.append(results.visc_ratio())
                         diff_dat.append(results.diff(timestamp,deltat)[-1])
@@ -228,6 +238,10 @@ def main():
                         else:
                             bulk_plus_dat.append(results.bulk2()[0]+kVib)
                             ratio_plus_dat.append((results.bulk2()[0]+kVib)/results.shear2()[0])
+                        if (m=='tip4p' or m=='spce') and temp=='300' and i=='5':
+                            print 'Doing extra evaluation...'
+                            shear_vacf_dat.append(results.shear_diff('vacf'))
+                            diff_vacf_dat.append(results.diff2()*1e9)
                         #print results.rho(), results.bulk2()[0], results.bulk2()[1]
                         print 'Data collection successful.\n'
                     except:
@@ -236,6 +250,7 @@ def main():
             
             rho_dat, press_dat, press_err   = averaging(rho_dat_init, press_dat)
             rho_dat, temp_dat, temp_err     = averaging(rho_dat_init, temp_dat)
+            rho_dat, shear_msd_dat, shear_msd_err   = averaging(rho_dat_init, shear_msd_dat)
             if len(den)==1:
                 rho_dat, shear_dat, shear_err   = averaging3(rho_dat_init, shear_dat, shear_err)
                 rho_dat, bulk_dat, bulk_err     = averaging3(rho_dat_init, bulk_dat, bulk_err)
@@ -246,22 +261,52 @@ def main():
             rho_dat, diff_dat, diff_err     = averaging(rho_dat_init, diff_dat)
             rho_dat, bulk_plus_dat, bulk_plus_err   = averaging(rho_dat_init, bulk_plus_dat)
             rho_dat, ratio_plus_dat, ratio_plus_err   = averaging(rho_dat_init, ratio_plus_dat)
+            if (m=='tip4p' or m=='spce') and temp=='300' and shear_vacf_dat != []:
+                rho_dat, shear_vacf_dat, shear_vacf_err   = averaging(rho_dat_init, shear_vacf_dat)#, shear_err)
+                rho_dat, diff_vacf_dat, diff_vacf_err   = averaging(rho_dat_init, diff_vacf_dat)
             
             print 'Diffusion for %s' % m,'at P=1bar:', diff_dat[0], '+/-', diff_err[0]
             print 'Shear viscosity for %s' % m,'at P=1bar:', shear_dat[0], '+/-', shear_err[0]
             print 'Bulk viscosity for %s' % m,'at P=1bar:', bulk_dat[0], '+/-', bulk_err[0]
             print 'Viscosity ratio for %s' % m,'at P=1bar:', ratio_dat[0], '+/-', ratio_err[0]
             print 'Final viscosity ratio for %s' % m, ratio_dat[-1], '+/-', ratio_err[-1]
+            
+            print 'rho'
+            print rho_dat
+            print 'Ds (MSD)'
+            print diff_dat
+            print 'Ds (VACF)'
+            print diff_vacf_dat
+            print 'kappa/eta:'
             print ratio_plus_dat, ratio_plus_err
+            print 'Pressure:'
             print press_dat
+            print 'eta:'
             print shear_dat, shear_err
+            print 'eta from Ds (MSD):'
+            print shear_msd_dat
+            print 'eta from Ds (VACF):'
+            print shear_vacf_dat
+            print 'kappa:'
             print bulk_plus_dat, bulk_plus_err
             print "-------------------------------"
 
             print 'Average diffusion for %s' % m, np.mean(diff_dat), '+/-', np.std(np.array(diff_dat))/np.sqrt(len(diff_dat))
             print 'Average shear viscosity for %s' % m, np.mean(shear_dat), '+/-', np.std(np.array(shear_dat))/np.sqrt(len(shear_dat))
-            print 'Average bulk viscosity for %s' % m, np.mean(bulk_dat), '+/-', np.std(np.array(bulk_dat))/np.sqrt(len(bulk_dat))
-            print 'Average viscosity ratio for %s' % m, np.mean(ratio_dat), '+/-', np.std(np.array(ratio_dat))/np.sqrt(len(ratio_dat))
+            print 'Average bulk viscosity for %s' % m, np.mean(bulk_plus_dat), '+/-', np.std(np.array(bulk_plus_dat))/np.sqrt(len(bulk_plus_dat))
+            print 'Average viscosity ratio for %s' % m, np.mean(ratio_plus_dat), '+/-', np.std(np.array(ratio_plus_dat))/np.sqrt(len(ratio_plus_dat))
+
+
+            # SAVE DATA
+            print #--------------Saving data ....-----------------#
+            with open('DATA/viscosity_{}_{}_T{}.csv'.format(fluid,m,temp), 'wb') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(("density", "pressure", "shear","bulk", "ratio"))
+                writer.writerows(imap(lambda a,b,c,d,e,f,g,h: (round(a,3), round(b,1), "{} \pm {}".format(round(c,3), round(d,3)), \
+                    "{} \pm {}".format(round(e,3), round(f,3)),"{} \pm {}".format(round(g,3), round(h,3))), \
+                    rho_dat, press_dat, shear_dat, shear_err, bulk_plus_dat, bulk_plus_err, ratio_plus_dat, ratio_plus_err))#izip(dZ,round(Hlist,2)))
+
+
 
             # Plotting
             ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
@@ -272,7 +317,21 @@ def main():
             ax2.errorbar(rho_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax2.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax2.set_ylabel('$\eta$ (mPa.s)')
+            if m=='EPM2rigid' and temp=='300':
+                rho_gas = 0.25
+                rho_liquid = 0.679
+                ax2.plot([rho_gas,rho_gas], [0, 0.26], linestyle='dotted',c='k', lw=1.5)
+                ax2.plot([rho_liquid,rho_liquid], [0, 0.26], linestyle='dotted',c='k', lw=1.5)
+                ax2.plot([rho_gas,rho_liquid],[0.04,0.04], linestyle='dashed',c='k', lw=1.5)
+                ax2.arrow(rho_gas, 0.04, -0.1, 0, head_width=0.007, head_length=0.02, fc='k', ec='k')
+                ax2.arrow(rho_liquid, 0.04, 0.1, 0, head_width=0.007, head_length=0.02, fc='k', ec='k')
+                ax2.text(rho_gas-0.1,0.05,'gas')
+                ax2.text(rho_gas+0.05,0.05,'two-phase')
+                ax2.text(rho_liquid+0.01,0.02,'liquid')
+                ax2.set_ylim(0,0.26)
             ax2.legend()
+
+            
 
             ax3.errorbar(rho_dat, bulk_dat, yerr=bulk_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax3.set_xlabel('$\\rho$ (g/cm$^3$)')
@@ -302,9 +361,79 @@ def main():
             #ax4_inset.set_xlim(0,0.12)
             #ax4_inset.set_ylim(100,)
 
+            if len(model) == 1:
+                fig2a = plt.figure(figsize=fig_size)
+                ax2a  = fig2a.add_axes([0.1,0.15,0.8,0.75])
+                ax2a.errorbar(rho_dat, shear_dat, yerr=shear_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='GK')
+                ax2a.plot(rho_dat, shear_msd_dat, linestyle = 'None', marker=markers[count+1], c=colours[2*count+1], label='$D_s$ (MSD)')
+                ax2a.set_xlabel('$\\rho$ (g/cm$^3$)')
+                ax2a.set_ylabel('$\eta$ (mPa.s)')
+
+                
+                if (m=='tip4p' or m=='spce') and temp=='300' and shear_vacf_dat != []:
+                    ax2a.plot(rho_dat, shear_vacf_dat, linestyle = 'None', marker=markers[count+2], c=colours[2*count+2], label='$D_s$ (VACF)')
+                    
+                    # straight fit for both VACF and GK eta
+                    xfit_gk, shear_fit_gk, slope_gk, slope_gk_err = straight_fit(1e9/np.array(diff_vacf_dat), 1e-3*np.array(shear_dat), 1e9/np.max(diff_vacf_dat), 1e9/np.min(diff_vacf_dat))
+                    xfit_vacf, shear_fit_vacf, slope_vacf, slope_vacf_err = straight_fit(1e9/np.array(diff_vacf_dat), 1e-3*np.array(shear_vacf_dat), 1e9/np.max(diff_vacf_dat), 1e9/np.min(diff_vacf_dat))
+
+                    # effect diameter
+                    kB = 1.38*1e-23
+                    T=int(temp)
+                    convert = 1e10
+                    factor = (kB*T)/(3*np.pi)
+
+                    alpha_vacf = convert*factor/slope_vacf # should be 1.7
+                    alpha_vacf_err = convert*factor*(-1)*(slope_vacf_err/slope_vacf**2)
+                    alpha_gk = convert*factor/slope_gk
+                    alpha_gk_err = convert*factor*(-1)*(slope_gk_err/slope_gk**2)
+                    xfit_gk, shear_fit_gk = 1e-9*np.array(xfit_gk), 1e3*np.array(shear_fit_gk)
+                    xfit_vacf, shear_fit_vacf = 1e-9*np.array(xfit_vacf), 1e3*np.array(shear_fit_vacf)
+                    print 'The effective diameters are:', alpha_vacf, '+/-',alpha_vacf_err, 'A (VACF) and', alpha_gk, '+/-',alpha_gk_err, 'A (GK)'
+
+                    fig4a = plt.figure(figsize=fig_size)
+                    ax4a  = fig4a.add_axes([0.1,0.15,0.8,0.75])
+                    
+                    ax4a.plot(1/np.array(diff_vacf_dat), shear_vacf_dat,linestyle = 'None', marker=markers[count+1], c=colours[2*count+1], label='Stokes-Einstein')
+                    ax4a.plot(1/np.array(diff_vacf_dat), shear_dat,linestyle = 'None', marker=markers[count], c=colours[2*count], label='Green-Kubo')
+                    ax4a.plot(xfit_vacf, shear_fit_vacf, linestyle='dashed',c=colours[2*count+1], label='fit (SE)')
+                    ax4a.plot(xfit_gk, shear_fit_gk, linestyle='dashed',c=colours[2*count],label='fit (GK)')
+                    #ax4.set_ylim(0,100)
+                    ax4a.set_xlabel('$1/D_s$ ($10^{9}$s/m$^2$)')
+                    ax4a.set_ylabel('$\eta$ (mPa.s)')
+                    ax4a.legend()
+                    fig4a.savefig('PLOTS/Stokes_Einstein_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
+                    
+
+                    fig4b = plt.figure(figsize=fig_size)
+                    ax4b  = fig4a.add_axes([0.1,0.15,0.8,0.75])
+                    ax4b.errorbar(rho_dat, diff_dat, yerr=diff_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='MSD')
+                    ax4b.errorbar(rho_dat, diff_vacf_dat,linestyle = 'None', marker=markers[count+1], c=colours[2*count+1], label='VACF')
+                    #ax4.set_ylim(0,100)
+                    ax4b.set_xlabel('$\\rho$ (g/cm$^3$)')
+                    ax4b.set_ylabel('$D_s$ ($10^{-9}m^2/s$)')
+                    ax4b.legend()
+                    fig4b.savefig('PLOTS/Ds_comp_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
+
+                    print 'Average shear viscosity (VACF) for %s' % m, np.mean(shear_vacf_dat), '+/-', np.std(np.array(shear_vacf_dat))/np.sqrt(len(shear_vacf_dat)), '\n'
+                ax2a.legend()
+                fig2a.savefig('PLOTS/SV_comp_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
+
             ax5.errorbar(rho_dat, ratio_dat, yerr=ratio_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax5.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax5.set_ylabel('$\kappa_{\mathrm{conf}}$/$\eta$')
+            if m=='EPM2rigid':
+                rho_gas = 0.25
+                rho_liquid = 0.679
+                ax5.plot([rho_gas,rho_gas], [-0.4,7.4], linestyle='dotted',c='k', lw=1.5)
+                ax5.plot([rho_gas,rho_liquid],[1.0, 1.0], linestyle='dashed',c='k', lw=1.5)
+                ax5.plot([rho_liquid,rho_liquid], [-0.4,7.4], linestyle='dotted',c='k', lw=1.5)
+                ax5.arrow(rho_gas, 1.0, -0.1, 0, head_width=0.16, head_length=0.02, fc='k', ec='k')
+                ax5.arrow(rho_liquid, 1.0, 0.1, 0, head_width=0.16, head_length=0.02, fc='k', ec='k')
+                ax5.text(rho_gas-0.09,1.25,'gas')
+                ax5.text(rho_gas+0.11,1.25,'two-phase')
+                ax5.text(rho_liquid+0.01,0.55,'liquid')
+                ax5.set_ylim(-0.4,7.4)
             ax5.legend()
 
             ax6.errorbar(rho_dat, temp_dat, yerr=temp_err,linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
@@ -327,17 +456,42 @@ def main():
             ax8a.set_ylabel('$\kappa$ (mPa.s)')
             ax8a.legend()
 
-            ax9.errorbar(rho_dat, bulk_plus_dat, yerr=bulk_plus_err, linestyle = 'None', marker='None', c='white', label='%s'%(legend_names[m]))
+            ax9.errorbar(rho_dat, bulk_plus_dat, yerr=bulk_plus_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             if m=='EPM2rigid':
                 bulk_plus_fit = np.array(bulk_fit)+np.min(bulk_plus_dat)
-                #ax9.plot(rho_fit, bulk_plus_fit, linestyle='dashed', lw=3, c='g')#, label='$\\rho^2$ fit')
+                ax9.plot(rho_fit, bulk_plus_fit, linestyle='dashed', lw=3, c='g')#, label='$\\rho^2$ fit')
+                rho_gas = 0.25
+                rho_liquid = 0.679
+                ax9.plot([rho_gas,rho_gas], [32, 32.6], linestyle='dotted',c='k', lw=1.5)
+                ax9.plot([rho_gas,rho_liquid],[32.05, 32.05], linestyle='dashed',c='k', lw=1.5)
+                ax9.plot([rho_liquid,rho_liquid], [32, 32.6], linestyle='dotted',c='k', lw=1.5)
+                ax9.arrow(rho_gas, 32.05, -0.1, 0, head_width=0.014, head_length=0.02, fc='k', ec='k')
+                ax9.arrow(rho_liquid, 32.05, 0.1, 0, head_width=0.014, head_length=0.02, fc='k', ec='k')
+                ax9.text(rho_gas-0.09,32.07,'gas')
+                ax9.text(rho_gas+0.11,32.07,'two-phase')
+                ax9.text(rho_liquid+0.01,32.07,'liquid')
+                ax9.set_ylim(32, 32.6)
+
             ax9.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax9.set_ylabel('$\kappa$ (mPa.s)')
-            ax9.legend()
+            ax9.legend(loc='upper left')
 
             ax10.errorbar(rho_dat, ratio_plus_dat, yerr=ratio_plus_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
             ax10.set_xlabel('$\\rho$ (g/cm$^3$)')
             ax10.set_ylabel('$\kappa$/$\eta$')
+            if m=='EPM2rigid':
+                #ax9.plot(rho_fit, bulk_plus_fit, linestyle='dashed', lw=3, c='g')#, label='$\\rho^2$ fit')
+                rho_gas = 0.25
+                rho_liquid = 0.679
+                ax10.plot([rho_gas,rho_gas], [0,4000], linestyle='dotted',c='k', lw=1.5)
+                ax10.plot([rho_gas,rho_liquid],[630, 630], linestyle='dashed',c='k', lw=1.5)
+                ax10.plot([rho_liquid,rho_liquid], [0,4000], linestyle='dotted',c='k', lw=1.5)
+                ax10.arrow(rho_gas, 630, -0.1, 0, head_width=100, head_length=0.02, fc='k', ec='k')
+                ax10.arrow(rho_liquid, 630, 0.1, 0, head_width=100, head_length=0.02, fc='k', ec='k')
+                ax10.text(rho_gas-0.09,710,'gas')
+                ax10.text(rho_gas+0.01,710,'two-phase')
+                ax10.text(rho_liquid+0.01,710,'liquid')
+                ax10.set_ylim(0,4000)
             ax10.legend()
 
             if count == 0 and fluid!='CO2':
@@ -345,30 +499,31 @@ def main():
             else:
                 count +=1
 
-        if fluid=='Water' and temp=='298':
+        if fluid=='Water' and (temp=='298' or temp=='300'):
             lower_bound = [2.7,2.7]
             upper_bound = [2.8,2.8]
             rho_min = np.min(rho_dat)
             rho_max = np.max(rho_dat)
 
             ax5.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
-            ax5.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+            ax5.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='#ffd6cc', zorder=1)
             ax10.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
-            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='#ffd6cc', zorder=1)
         elif fluid=='Decane' and temp=='300':
-            lower_bound = [3.23,3.23]
-            upper_bound = [3.29,3.29]
+            lower_bound = [3.23,3.23] #[3.1,3.1]
+            upper_bound = [3.29,3.29] #[3.35,3.35]
             rho_min = np.min(rho_dat)
             rho_max = np.max(rho_dat)
             ax5.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
-            ax5.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+            ax5.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='#ffd6cc', zorder=1)
             ax10.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
-            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='#ffd6cc', zorder=1)
         elif fluid=='CO2' and temp=='300':
             lower_bound = [843,843]
             upper_bound = [3849,3849]
             rho_min = np.min(rho_dat)
-            rho_max = np.max(rho_dat)
+            rho_lim = np.max(rho_dat)
+            rho_max = 0.15
             # add constant kint to plot
             rho_tmp = np.linspace(rho_min-0.1*rho_min, rho_max+0.01*rho_max,10)
             kInt_list_tmp = [(kVib+kRot)]*len(rho_tmp)
@@ -376,10 +531,13 @@ def main():
             kInt_ratio = np.divide(np.array(kInt_list),NIST[2])
             
             ax9.plot(rho_tmp, kInt_list_tmp, linestyle='dotted', lw=3, c='k')
-            ax9.set_xlim(rho_min-0.1*rho_min, rho_max+0.01*rho_max)
+            ax9.set_xlim(rho_min-0.1*rho_min, rho_lim+0.01*rho_lim)
             #ax10.plot(NIST[0], kInt_ratio, linestyle='dotted', lw=3, c='k')
-            ax10.set_xlim(rho_min-0.001*rho_min, rho_max+0.001*rho_max)
-            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='red', alpha=0.1, zorder=1)
+            ax10.set_xlim(rho_min-0.001*rho_min, rho_lim+0.001*rho_lim)
+            ax10.fill_between([rho_min-0.2*rho_min,rho_max+0.2*rho_max], lower_bound, upper_bound, facecolor='#ffd6cc', zorder=1)
+
+
+
 
         if png == 'y':
             fig1.savefig('PLOTS/PNG/P_%s_T%s_%s.png'%(fluid, temp,name_plot))
@@ -393,14 +551,26 @@ def main():
             fig8a.savefig('PLOTS/PNG/BVplus_vP_%s_T%s_%s.png'%(fluid, temp,name_plot))
             fig9.savefig('PLOTS/PNG/BVplus_%s_T%s_%s.png'%(fluid, temp,name_plot))
             fig10.savefig('PLOTS/PNG/BSplus_%s_T%s_%s.png'%(fluid, temp,name_plot))
+        elif png == 'eps':
+            fig1.savefig('PLOTS/EPS/P_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000)
+            fig2.savefig('PLOTS/EPS/SV_%s_T%s_%s.eps'%(fluid, temp,name_plot), format='eps', dpi=1000, bbox_inches='tight')
+            fig3.savefig('PLOTS/EPS/BV_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000,bbox_inches='tight')
+            fig4.savefig('PLOTS/EPS/Ds_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000)
+            fig5.savefig('PLOTS/EPS/BS_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000,bbox_inches='tight')
+            fig6.savefig('PLOTS/EPS/T_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000)
+            fig7.savefig('PLOTS/EPS/SV_vP_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000)
+            fig8.savefig('PLOTS/EPS/BV_vP_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000)
+            fig8a.savefig('PLOTS/EPS/BVplus_vP_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000,bbox_inches='tight')
+            fig9.savefig('PLOTS/EPS/BVplus_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000,bbox_inches='tight')
+            fig10.savefig('PLOTS/EPS/BSplus_%s_T%s_%s.eps'%(fluid, temp,name_plot),format='eps', dpi=1000,bbox_inches='tight')
         else:
             fig1.savefig('PLOTS/P_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig2.savefig('PLOTS/SV_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
-            fig3.savefig('PLOTS/BV_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
+            fig3.savefig('PLOTS/BV_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
             fig4.savefig('PLOTS/Ds_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-            fig5.savefig('PLOTS/BS_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
+            fig5.savefig('PLOTS/BS_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
             fig6.savefig('PLOTS/T_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
-            fig7.savefig('PLOTS/SV_vP_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
+            fig7.savefig('PLOTS/SV_vP_%s_T%s_%s.eps'%(fluid, temp,name_plot))
             fig8.savefig('PLOTS/BV_vP_%s_T%s_%s.pdf'%(fluid, temp,name_plot))
             fig8a.savefig('PLOTS/BVplus_vP_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')
             fig9.savefig('PLOTS/BVplus_%s_T%s_%s.pdf'%(fluid, temp,name_plot),bbox_inches='tight')

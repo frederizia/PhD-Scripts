@@ -8,12 +8,16 @@ import sys
 import re
 import numpy as np
 from scipy.integrate import simps
+from scipy import stats
+from scipy.optimize import curve_fit
+from scipy.interpolate import UnivariateSpline
+import pandas as pd
 
 def read_log(f):
     '''Code to read in log file'''
     #print 'Reading in data for', f
 
-    file = open('Water_Graphene/log.{}_1'.format(f),'r')
+    file = open('Water_Graphene/log.{}'.format(f),'r')
 
     data = file.read()
     data_lines = data.split('\n')
@@ -54,15 +58,14 @@ def mid_point(Y,VAR):
 
     # Find mid point
     mid = int(len(Y)/2)
-
-
+    tol = 0.01
 
     for k in range(1,mid):
-        if abs(VAR[k-1]-VAR[k]) >= 0.03:           
+        if abs(VAR[k-1]-VAR[k]) >= tol:           
             LEFT = k
             break
     for k in range(1,mid):        
-        if abs(VAR[::-1][k-1]-VAR[::-1][k]) >= 0.03:           
+        if abs(VAR[::-1][k-1]-VAR[::-1][k]) >= tol:           
             RIGHT = len(Y)-k
             break
 
@@ -78,7 +81,7 @@ def rho_wall_max(RHO, LEFT):
 def read_densprof(f):
     '''Code to read in density  data from a 1d LAMMPS output file'''
 
-    filename = 'Water_Graphene/densprof.{}_1'.format(f)
+    filename = 'Water_Graphene/densprof.{}'.format(f)
     f = open(filename,'r')
 
     data = f.read()
@@ -114,8 +117,79 @@ def read_densprof(f):
 
     return zcoord, dens
 
+def read_densprof_2d(f,atom):
+
+    if atom==None:
+        filename = 'Water_Graphene/dens.{}'.format(f)
+    else:
+        filename = 'Water_Graphene/dens{}.{}'.format(atom,f)
+    
+    
+    ybin = []
+    zbin = []
+    dx = 0.2
+    ylo = -0.5
+    yhi = 37.3
+    zlo = -0.5
+    zhi = 32.3
+
+    ylist = list(np.arange(ylo,yhi+dx,dx))
+    zlist = list(np.arange(zlo, zhi+dx, dx))
+
+    # round values in list so that they agree with data
+    ylist = [round(n, 1) for n in ylist]
+    zlist = [round(n, 1) for n in zlist]
+
+
+    ydim = len(ylist)
+    zdim = len(zlist)
+
+    density  = np.zeros((ydim,zdim))
+    coords_y = np.zeros((ydim,zdim))
+    coords_z = np.zeros((ydim,zdim))
+
+
+    count = 1
+    count_tmp = 0
+    count_tmp2 = 0
+    with open(filename) as infile:
+        for line in infile:
+            if len(line.split()) != 2 and len(line.split()) != 3 and line.split()[0] != '#':
+                y_val = float(line.split()[1])
+                z_val = float(line.split()[2])
+                den_val = float(line.split()[5])
+
+
+                # only select values within slit
+                if y_val in ylist and z_val in zlist:
+                    y_ind = ylist.index(y_val)
+                    z_ind = zlist.index(z_val)
+                    #print z_ind, z_val
+                    ybin.append(y_val)
+                    zbin.append(z_val)
+
+                    # average over all time steps
+                    if count_tmp == 0:
+                        density[y_ind][z_ind] = den_val
+                    else:
+                        density[y_ind][z_ind] = (density[y_ind][z_ind]+den_val)/2
+                    coords_y[y_ind][z_ind] = ylist[y_ind]
+                    coords_z[y_ind][z_ind] = zlist[z_ind]
+                    count_tmp += 1
+            count =2
+      
+
+    #density_z = np.average(density, axis = 0)
+    #density_z_err = stats.sem(density, axis = 0)
+    coords_z = coords_z[0,:] #np.average(coords_z, axis = 0)
+    #density_y = np.average(density, axis = 1)
+    coords_y = coords_y[:,0] #np.average(coords_x, axis = 1)
+
+
+    return density, coords_y, coords_z
+
 def coords(f):
-    filename = 'Water_Graphene/log.{}_1'.format(f)
+    filename = 'Water_Graphene/log.{}'.format(f)
     f = open(filename,'r')
 
     data = f.read()
@@ -137,9 +211,9 @@ def geometry(f):
 
 def stress_prof(f,xtra='None'):
     if xtra == 'None':
-        filename = 'Water_Graphene/stress.{}_1'.format(f)
+        filename = 'Water_Graphene/stress.{}'.format(f)
     else:
-        filename = 'Water_Graphene/stress{}.{}_1'.format(xtra,f)
+        filename = 'Water_Graphene/stress{}.{}'.format(xtra,f)
     file = open(filename,'r')
     data_lines = file.readlines()
     file.close()
@@ -192,7 +266,7 @@ def stress_prof(f,xtra='None'):
             Pxy = -xy
             Pxz = -xz
             Pyz = -yz
-            pres = (Pxx+Pyy+Pzz)*0.101325/3
+            pres = (Pxx+Pyy+Pzz)*0.1/3 # in MPa
 
             coords.append(Coord)
             pressure.append(pres)
@@ -211,6 +285,7 @@ def stress_prof(f,xtra='None'):
     pxx_tot.append(pxx)
     pyy_tot.append(pyy)
     pzz_tot.append(pzz)
+
     coords = np.mean(np.array(coords_tot),axis=0)
     pressure = np.mean(np.array(pressure_tot),axis=0)
     pxx_tot = np.mean(np.array(pxx_tot),axis=0)
@@ -260,7 +335,7 @@ def correlation(data, clen, sint):
     dt = 0.0005
     sampint = sint
     times_range = clen # want this to be between 100-1000 clen
-
+    print data.shape
     print 'Calculating the autocorrelation function for', dt*sampint*clen, 'ps.'
     # iterate over different time origins
     Cdata = np.zeros(times_range+1) # stores correlation for each time origin
@@ -305,14 +380,92 @@ def eta(f, data, delz):
     Vnew = area = geometry(f)[0]*delz
 
     eta_scale = (Vnew*sampint*dt*convert)/(Tave*kB)
-    ACF_int = simps(acf)
-    ETA = eta_scale*ACF_int
+    ACF_int = simps(acf) 
+    ETA = eta_scale*ACF_int # in Pas
 
     return ETA
 
+def eta_diff(diff):
+    kB = 1.38*1e-23
+    a = 1.7*1e-10
+    T = 298
+    return (kB*T)/(3*np.pi*a*diff)
+
+def visc_gk(file, H, visc_type, eta_type):
+    filename = 'Water_Graphene/visc.{}'.format(file)
+    df = pd.read_csv(filename, delimiter=' ', skiprows=2)
+    #read first two lines
+    with open(filename, 'r') as f:
+        _, line2 = f.readline(), f.readline()
+    cols = line2.lstrip('#').strip().split(' ')
+    df.columns = cols
+    Shear = float(df['v_{}_{}'.format(visc_type,eta_type)].tolist()[-1])
+    #area, area_f, vol = geometry(file)
+    #print 'vol = ', vol
+    #print 'volf = ', area*H
+    #Shear_channel = Shear * (area*H)/vol 
+    #print Shear, Shear_channel
+    return Shear #_channel
+
+def eta_gk_acf(file, H):
+    corrlen = 2000
+    sampint = 10 #20
+    dt = 0.0005
+    tlim = 16000000
+    kB = 1.38e-23
+
+    # find volume and T
+    area, area_f, vol = geometry(file)
+    volf = area*H
+
+    Log_data = read_log(file)
+    T, P, Pc, Pcnew, dP, V = props(Log_data)
+    Tave = np.mean(T)
+
+    # conversion
+    A2m = 1e-10
+    ps2s = 1e-12
+    bar2Pa = 1e5
+    convert = A2m**3*ps2s*bar2Pa**2
+
+    filename = 'Water_Graphene/acfsv.{}'.format(file)
+    #read first two lines
+    with open(filename, 'r') as f:
+        _, line2, line3 = f.readline(), f.readline(), f.readline()
+    cols = line3.lstrip('#').strip().split(' ')
+    df = pd.read_csv(filename, delimiter=' ', names=cols,skiprows=4)
+    #df.columns = cols
+    try:
+        final_slice = df[df.Index == tlim].index[0]
+    except:
+        final_slice = df[df.Index == 14000000].index[0]
+    df = df[final_slice+1:] # only use final average
+    acfsv = df['v_pxy*v_pxy'].tolist()
+    acfsv_normal = df['v_pxz*v_pxz'].tolist()
+    int_acfsv = simps(acfsv) #, dx=dt*sampint)
+    
+
+    # Calculate eta
+    eta_scale = (volf*sampint*dt*convert)/(Tave*kB)
+    Shear = int_acfsv*eta_scale
+
+    # plot ACF parrallel and normal to compare behaviour
+    fig1 = plt.figure(figsize=(9,7)) 
+    ax1  = fig1.add_axes([0.1,0.15,0.8,0.75])
+    ax1.plot(np.arange(len(acfsv))*20, acfsv/acfsv[0], label = 'parallel')
+    ax1.plot(np.arange(len(acfsv))*20, acfsv_normal/acfsv_normal[0], label = 'normal')
+    ax1.set_xlabel('$\Delta$ t')
+    ax1.set_ylabel('Normalised ACF')
+    ax1.set_xlim(0,5000)
+    ax1.legend()
+    fig1.savefig('PLOTS_C/ACF_{}.pdf'.format(file),bbox_inches='tight')
+    fig1.clear()
+
+    return Shear 
+
 def pmf_prof(f):
 
-    filename = ilename = 'Water_Graphene/pmf.{}_1'.format(f)
+    filename = ilename = 'Water_Graphene/pmf.{}'.format(f)
     
     # read in data
     f = open(filename,'r')
@@ -338,3 +491,116 @@ def pmf_prof(f):
     pmf = np.array(pmf)
 
     return zbin, pmf
+
+def exp_fit(x, y, xmin, xmax, guess=[1,1,1]):
+    params, cov = curve_fit(expf, np.array(x), np.array(y), p0=guess)
+    xdat = np.linspace(xmin, xmax, 100)
+    fit = expf(xdat,*params)
+    return xdat, fit
+
+def expf(x, A,B,C):
+    return A*np.exp(-B*x)+C
+
+def averaging(k,v):
+    averages = {}
+    errors = {}
+    counts = {}
+    for name, value in zip(k, v):
+        if name in averages:
+            averages[name].append(value)
+            counts[name] += 1
+        else:
+            averages[name] = [value]
+            counts[name] = 1
+    for name in averages:
+        ave_array = np.array(averages[name])
+        ave_val = np.mean(ave_array)
+        ave_stdev = np.std(ave_array)
+        ave_error = ave_stdev/np.sqrt(float(counts[name]))
+        averages[name] = ave_val#averages[name]/float(counts[name])
+        errors[name] = ave_error 
+
+    k = map(float, averages.keys())
+    v = averages.values()
+    e = errors.values()
+    sorti = np.argsort(k)
+    k, v, e = np.array(k)[sorti], np.array(v)[sorti], np.array(e)[sorti]
+    return k,v,e
+
+def diff_msd(file):
+    filename = 'Water_Graphene/msd.{}'.format(file)
+    tlim = 8*1e6
+    dt = 0.0005
+    space_convert = 1e-20
+    time_convert = 1e-12
+    df = pd.read_csv(filename, delimiter=' ', skiprows=2)
+    #read first two lines
+    with open(filename, 'r') as f:
+        _, line2 = f.readline(), f.readline()
+    cols = line2.lstrip('#').strip().split(' ')
+    df.columns = cols
+    df   = df[df.TimeStep>=tlim]
+    MSDx = df['c_rmsd[1]'].tolist()
+    MSDy = df['c_rmsd[2]'].tolist()
+    MSDz = df['c_rmsd[3]'].tolist()
+    T = df['TimeStep']*dt
+    dT = np.max(T)-np.min(T)
+
+    # fit
+    T_fit, msdfit_x, slope_x, slope_x_err = straight_fit(T, MSDx, np.min(T), np.max(T))
+    T_fit, msdfit_y, slope_y, slope_y_err = straight_fit(T, MSDy, np.min(T), np.max(T))
+    T_fit, msdfit_z, slope_z, slope_z_err = straight_fit(T, MSDz, np.min(T), np.max(T))
+
+    # diffusion coefficients
+    diff_x = (slope_x/2)*(space_convert/time_convert)
+    diff_y = (slope_y/2)*(space_convert/time_convert)
+    diff_z = (slope_z/2)*(space_convert/time_convert)
+    # errors
+    diff_x_err = (slope_x_err/2)*(space_convert/time_convert)
+    diff_y_err = (slope_y_err/2)*(space_convert/time_convert)
+    diff_z_err = (slope_z_err/2)*(space_convert/time_convert)
+
+    diff_ave = (diff_x+diff_y)/2
+    diff_ave_err = error_avg(diff_x_err, diff_y_err)
+
+    print 'Average 2D diffusion coefficient xy:', diff_ave
+
+    fig1 = plt.figure(figsize=(9,7)) 
+    ax1  = fig1.add_axes([0.1,0.15,0.8,0.75])
+    ax1.plot(T, MSDx, label = 'x')
+    ax1.plot(T_fit, msdfit_x, linestyle='dashed', label = 'x fit')
+    ax1.plot(T, MSDy, label = 'y')
+    ax1.plot(T_fit, msdfit_y, linestyle='dashed', label = 'y fit')
+    #ax1.plot(T, MSDz, label = 'z')
+    #ax1.plot(T_fit, msdfit_z, linestyle='dashed', label = 'z fit')
+    ax1.set_xlabel('t (ps)')
+    ax1.set_ylabel('MSD (\AA$^2$)')
+    #ax1.set_xlim(0,5000)
+    ax1.legend()
+    fig1.savefig('PLOTS_C/MSD_{}.pdf'.format(file),bbox_inches='tight')
+    fig1.clear()
+
+    return diff_ave, diff_ave_err
+
+def straight_fit(x, y, xmin, xmax):
+    params , cov = curve_fit(f1, np.array(x), np.array(y), bounds=(0, np.inf))
+    slope, inter = params[0], params[1]
+    slope_err = np.sqrt(np.diag(cov))[0]
+    xdat = np.linspace(xmin, xmax, 100)
+    fit = []
+    for x in xdat:
+        fit.append(slope*x+inter)
+    return xdat, fit, slope, slope_err
+
+def f1(x, A, B):
+    return A*x+B
+
+def error_avg(err1, err2):
+    return 0.5*np.sqrt(err1**2+err2**2)
+
+def interpolate_derivative(xdat, ydat):
+    # make data less exact/more crude
+    spl = UnivariateSpline(xdat, ydat, k=4,s=0)
+    roots = spl.derivative().roots()
+    yfit = spl(xdat)
+    return yfit, roots

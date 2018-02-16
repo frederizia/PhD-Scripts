@@ -199,7 +199,7 @@ def mean_vals(p):
     df.columns = cols
     vol  = df['v_vol_one']*1e-30 # m^3
     vol  = vol.tolist()
-    press = df['v_pre_one']*1e5
+    press = df['v_pre_one']
     press = press.tolist()
 
     vol_mean   = np.mean(np.array(vol))
@@ -424,6 +424,19 @@ def poly_fit(x, y, xmin, xmax):
 def f2(x, A):
     return A*x**2
 
+def straight_fit(x, y, xmin, xmax):
+    params , cov = curve_fit(f1, np.array(x), np.array(y), bounds=(0, np.inf))
+    slope, inter = params[0], params[1]
+    slope_err = np.sqrt(np.diag(cov))[0]
+    xdat = np.linspace(xmin, xmax, 100)
+    fit = []
+    for x in xdat:
+        fit.append(slope*x+inter)
+    return xdat, fit, slope, slope_err
+
+def f1(x, A, B):
+    return A*x+B
+
 # create class
 
 class bulk_properties:
@@ -569,6 +582,40 @@ class bulk_properties:
         diff[3] = 1e9*diff[3]/3 # As this is averaging over all directions
 
         return diff
+
+    def diff2(self):
+        C_vv_array = np.loadtxt("{}/C_vv_{}_T{}_P{}_{}_1_1000_z0_30.dat".format(self.f,self.m, self.T,self.P, self.idx))
+        times =  C_vv_array[:,0]
+        C_vv_ave = C_vv_array[:,1]
+
+        if 'Water' in self.f:
+            time_conv = 1e-12
+            space_conv = 1e-10
+            dt = 0.0005
+        elif 'LJ' in self.f:
+            time_conv = 1
+            space_conv = 1
+            dt = 0.001
+
+        int_vacf = simps(C_vv_ave, dx=dt)
+
+        diff_3d = int_vacf/3
+        conv = space_conv**2/time_conv
+        diff_3d_si = diff_3d*conv
+
+        return diff_3d_si
+
+    def shear_diff(self, opt):
+        kB = 1.38*1e-23
+        a = 1.7*1e-10
+        T = self.temp()
+        if opt == 'msd':
+            diff  = self.diff(8000000,6000000)[-1]*1e-9
+        if opt == 'vacf':
+            diff  = self.diff2()
+        eta = (kB*T)/(3*np.pi*a*diff)
+        print diff, eta
+        return eta*1e3
 
 
 class confined_properties:

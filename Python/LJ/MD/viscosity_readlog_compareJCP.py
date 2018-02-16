@@ -213,11 +213,14 @@ def main():
         idx+=1
 
 
-    fig1.savefig('PLOTS/{}.pdf'.format(name_plot1))
-    fig2.savefig('PLOTS/{}.pdf'.format(name_plot2))
-    fig3.savefig('PLOTS/{}.pdf'.format(name_plot3))
-    fig4.savefig('PLOTS/{}.pdf'.format(name_plot4))
-
+    #fig1.savefig('PLOTS/{}.pdf'.format(name_plot1))
+    #fig2.savefig('PLOTS/{}.pdf'.format(name_plot2))
+    #fig3.savefig('PLOTS/{}.pdf'.format(name_plot3))
+    #fig4.savefig('PLOTS/{}.pdf'.format(name_plot4))
+    fig1.savefig('PLOTS/{}.eps'.format(name_plot1),format='eps', dpi=1000)
+    fig2.savefig('PLOTS/{}.eps'.format(name_plot2),format='eps', dpi=1000)
+    fig3.savefig('PLOTS/{}.eps'.format(name_plot3),format='eps', dpi=1000)
+    fig4.savefig('PLOTS/{}.eps'.format(name_plot4),format='eps', dpi=1000)
 
     return
 

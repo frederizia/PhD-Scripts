@@ -68,6 +68,9 @@ def main():
     # WA/Ds vs fric
     fig3 = plt.figure(figsize=fig_size_sq) 
     ax3  = fig3.add_axes([0.1,0.15,0.8,0.75])
+    # Eta vs fric
+    fig5 = plt.figure(figsize=fig_size_sq) 
+    ax5  = fig5.add_axes([0.1,0.15,0.8,0.75])
 
     Ls_WADs = []
     Ls_fric = []
@@ -83,8 +86,13 @@ def main():
     enh_force_mc = []
     enh_force_err = []
     enh_force_mc_err = []
-    LD = []
+    Eta_force_avg = []
+    Eta_force_avg_err = []
+    Eta_EMD = []
+
+    LD, LH = [], []
     D = []
+    H = []
     Dnemd = []
     count_s = 0
     name_s = 'eps{}'.format(eps)
@@ -94,6 +102,7 @@ def main():
         enh_force_mc_tmp = []
         Ls_enh_tmp = []
         Ls_enh_mc_tmp = []
+        Eta_force = []
         # Equilibrium properties
         print '--------------------- s = {} ----------------------'.format(s)
         print 'Calculating equilibrium properties for s=',s,'A...'
@@ -103,7 +112,9 @@ def main():
         Lval *=1e-10
         Dval = (Hval/2)*1e-10
         D.append(Dval*1e10)
+        H.append(Hval)
         LD.append(Lval/Dval)
+        LH.append(Lval/(Hval*1e-10))
 
         print 'L/D =', Lval/Dval
         print 'Eta =', eta
@@ -117,6 +128,14 @@ def main():
         Ds_val = diff(fluid,wall,model,eps,s) 
         print 'D_s/W_A =', Ds_val/WA_val
 
+        #Eta
+        alpha = 1.7*1e-10
+        T = 298
+        kB = 1.38*1e-23
+        Eta_EMD_val = (kB*T)/(3*np.pi*alpha*Ds_val)
+        Eta_EMD.append(Eta_EMD_val*1e3)
+        print 'Eta_wall =', Eta_EMD_val*1e3, 'mPas'
+
 
         # Ls from WA/Ds
         Ls_WADs_val = -(eta/2)*(Lval/Dval)*(Ds_val/WA_val)
@@ -124,7 +143,7 @@ def main():
         print 'Ls_WADs = ', Ls_WADs_val*1e9, 'nm'
 
         # enhancement
-        enh_WADs_val = -(3/2)*eta*(Lval/Dval**2)*(Ds_val/WA_val)
+        enh_WADs_val = enh_WADs_fn(Lval, Dval, WA_val, Ds_val, eta)
         enh_WADs.append(enh_WADs_val)
         print 'Predicted enhancement WADs = ', enh_WADs_val
         # error
@@ -167,7 +186,7 @@ def main():
                 dP_err_list.append(dP_err)
 
                 # Q and velocity plot
-                Q = flux(fluid,wall,model,eps,s,f,Ylo,Yhi,Zlo, Zhi,rerun)
+                Q, Z, VEL = flux(fluid,wall,model,eps,s,f,Ylo,Yhi,Zlo, Zhi,rerun)
                 Q_list.append(Q)
 
                 # Q mol count
@@ -200,12 +219,10 @@ def main():
                 Ls_enh_mc_tmp.append(Ls_enh_mc_val*1e9)
                 print 'Ls_enh_mc = ', Ls_enh_mc_val*1e9, 'nm'
 
-                # add to plo Q vs delP
 
-                # add to plot Q/QP vs delP
-
-                # add to plot Q vs D
-            except IOError:
+                EtaVal = viscosity(fluid,wall,model,eps,s,f,Z,VEL,dP,Lval,Dval)
+                Eta_force.append(EtaVal*1e3)
+            except:
                 print 'No data for s={}, f={}.'.format(s,f)
         enh_force_avg_val = np.mean(np.array(enh_force_tmp))
         enh_force_err_val = stats.sem(enh_force_tmp)
@@ -223,13 +240,17 @@ def main():
         Ls_enh_err.append(Ls_enh_err_val)
         Ls_enh_mc_avg.append(Ls_enh_mc_avg_val)
         Ls_enh_mc_err.append(Ls_enh_mc_err_val)
+        Eta_force_avg_val = np.mean(np.array(Eta_force))
+        Eta_force_err_val = stats.sem(Eta_force)
+        Eta_force_avg.append(Eta_force_avg_val)
+        Eta_force_avg_err.append(Eta_force_err_val)
         print '------------------------------------'
         print 'Average enh_force = ', enh_force_avg_val, '+/-', enh_force_err_val
         print 'Average Ls_enh = ', Ls_enh_avg_val, '+/-', Ls_enh_err_val, 'nm.'
         print 'Average enh_force_mc = ', enh_force_mc_avg_val, '+/-', enh_force_mc_err_val
         print 'Average Ls_enh_mc = ', Ls_enh_mc_avg_val, '+/-', Ls_enh_mc_err_val, 'nm.'
+        print 'Average Eta_force = ', Eta_force_avg_val, '+/-', Eta_force_err_val, 'mPas.'
         print '------------------------------------'
-
 
         ax4.errorbar(dP_list, Q_list, xerr=dP_err_list, label = '$Q_{MD}$', marker=markers[0], c=colours[0], ls='dashed')
         ax4.errorbar(dP_list, Qmc_list, xerr=dP_err_list, label = '$Q_{count}$', marker=markers[4], c=colours[4], ls='dashed')
@@ -243,7 +264,10 @@ def main():
         # Calculate Ls from 
         count_s +=1
 
-    
+    enh_WADs_mod, LH_mod = [], []
+    for i in range(1, 30):
+        enh_WADs_mod.append(enh_WADs_fn(66.6*1e-10, i*1e-10, -10.6, 2.4e-9, eta))
+        LH_mod.append(66.6/i)
 
     # Calculate average of Ls from fit to Q/QP vs delP plot
 
@@ -251,50 +275,60 @@ def main():
 
     # PLOTTING
     # enhancement EMD
-    ax1.plot(LD, enh_fric, marker=markers[0], c=colours[0], ls='dashed', label='$\lambda$')
-    ax1.plot(LD, enh_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
-    ax1.set_xlabel('L/D')
+    ax1.plot(LH, enh_fric, marker=markers[0], c=colours[0], ls='dashed', label='$\lambda$')
+    ax1.plot(LH, enh_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
+    ax1.set_xlabel('L/H')
     ax1.set_ylabel('$\epsilon$')
     ax1.legend()
 
     # enh WADs only
-    ax1a.plot(LD, enh_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
-    ax1a.set_xlabel('L/D')
+    ax1a.plot(LH, enh_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
+    ax1a.plot(LH_mod, enh_WADs_mod, c=colours[2], label='model')
+    ax1a.set_xlabel('L/H')
     ax1a.set_ylabel('$\epsilon$')
     ax1a.legend()
 
     # enh All
-    ax1b.plot(LD, enh_fric, marker=markers[0], c=colours[0], ls='dashed', label='$\lambda$')
-    ax1b.plot(LD, enh_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
-    ax1b.errorbar(LD, enh_force, yerr=enh_force_err, marker=markers[2], c=colours[4], ls='dashed', label='$Q_{MD}$')
-    ax1b.errorbar(LD, enh_force_mc, yerr=enh_force_mc_err, marker=markers[3], c=colours[6], ls='dashed', label='$Q_{count}$')
-    ax1b.set_xlabel('L/D')
+    ax1b.plot(LH, enh_fric, marker=markers[0], c=colours[0], ls='dashed', label='$\lambda$')
+    ax1b.plot(LH, enh_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
+    ax1b.errorbar(LH, enh_force, yerr=enh_force_err, marker=markers[2], c=colours[4], ls='dashed', label='$Q_{MD}$')
+    ax1b.errorbar(LH, enh_force_mc, yerr=enh_force_mc_err, marker=markers[3], c=colours[6], ls='dashed', label='$Q_{count}$')
+    ax1b.set_xlabel('L/H')
     ax1b.set_ylabel('$\epsilon$')
     ax1b.legend()
 
     # Ls EMD
-    ax2.plot(D, Ls_fric, marker=markers[0], c=colours[0], ls='dashed', label='$\lambda$')
-    ax2.plot(D, Ls_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
-    ax2.set_xlabel('D (\AA)')
+    ax2.plot(H, Ls_fric, marker=markers[0], c=colours[0], ls='dashed', label='$\lambda$')
+    ax2.plot(H, Ls_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
+    ax2.set_xlabel('H (\AA)')
     ax2.set_ylabel('$L_s (\mathrm{nm})$')
     ax2.legend()
 
     # Ls all
-    ax3.plot(D, Ls_fric, marker=markers[0], c=colours[0], ls='dashed', label='$\lambda$')
-    ax3.plot(D, Ls_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
-    ax3.errorbar(D, Ls_enh_avg, yerr=Ls_enh_err, marker=markers[2], c=colours[4], ls='dashed', label='$\epsilon$')
-    ax3.errorbar(D, Ls_enh_mc_avg, yerr=Ls_enh_mc_err, marker=markers[3], c=colours[6], ls='dashed', label='$\epsilon$')
+    ax3.plot(H, Ls_fric, marker=markers[0], c=colours[0], ls='dashed', label='$\lambda$')
+    ax3.plot(H, Ls_WADs, marker=markers[1], c=colours[2], ls='dashed', label='$D_s/W_A$')
+    ax3.errorbar(H, Ls_enh_avg, yerr=Ls_enh_err, marker=markers[2], c=colours[4], ls='dashed', label='$\epsilon$')
+    ax3.errorbar(H, Ls_enh_mc_avg, yerr=Ls_enh_mc_err, marker=markers[3], c=colours[6], ls='dashed', label='$\epsilon$')
     #ax3.plot(Dnemd, Ls_enh, marker=markers[2], c=colours[4], ls='dashed', label='$\epsilon$')
-    ax3.set_xlabel('D (\AA)')
+    ax3.set_xlabel('H (\AA)')
     ax3.set_ylabel('$L_s (\mathrm{nm})$')
     ax3.legend()
 
+    # Eta
+    if eps == 5.0:
+        ax5.errorbar(H, Eta_force_avg, yerr=Eta_force_avg_err, marker=markers[0], c=colours[0], label='NEMD')
+    ax5.plot(H, Eta_EMD, marker=markers[1], c=colours[1], label='EMD, surface')
+    ax5.set_xlabel('H (\AA)')
+    ax5.set_ylabel('$\eta (\mathrm{mPas})$')
+    ax5.legend()
+
     # SAVEFIG
-    fig1.savefig('PLOTS/{}/enh_EMD_vs_D_s{}.{}'.format(EXT,name_s,ext))
-    fig1a.savefig('PLOTS/{}/enh_WADs_vs_D_s{}.{}'.format(EXT,name_s,ext))
-    fig1b.savefig('PLOTS/{}/enh_all_vs_D_s{}.{}'.format(EXT,name_s,ext))
-    fig2.savefig('PLOTS/{}/Ls_EMD_vs_D_s{}.{}'.format(EXT,name_s,ext))
-    fig3.savefig('PLOTS/{}/Ls_all_vs_D_s{}.{}'.format(EXT,name_s,ext))
+    fig1.savefig('PLOTS/{}/enh_EMD_vs_D_s{}.{}'.format(EXT,name_s,ext),bbox_inches='tight')
+    fig1a.savefig('PLOTS/{}/enh_WADs_vs_D_s{}.{}'.format(EXT,name_s,ext),bbox_inches='tight')
+    fig1b.savefig('PLOTS/{}/enh_all_vs_D_s{}.{}'.format(EXT,name_s,ext),bbox_inches='tight')
+    fig2.savefig('PLOTS/{}/Ls_EMD_vs_H_s{}.{}'.format(EXT,name_s,ext),bbox_inches='tight')
+    fig3.savefig('PLOTS/{}/Ls_all_vs_H_s{}.{}'.format(EXT,name_s,ext),bbox_inches='tight')
+    fig5.savefig('PLOTS/{}/Eta_vs_H_s{}.{}'.format(EXT,name_s,ext),bbox_inches='tight')
 
     return
 

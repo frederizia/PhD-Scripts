@@ -239,9 +239,11 @@ def main():
             if units=='reduced':
                 d_new = d/rho_c
                 Tname = 'T$^*$'
+                Tunit = ''
             else:
                 d_new = d*(M/(NA*sigma**3))
                 Tname = 'T'
+                Tunit = 'K'
             dens_argon.append(d_new)
 
 
@@ -249,9 +251,9 @@ def main():
 
         # PLOTTING
 
-        ax3.errorbar(dens_argon, ratio, yerr=ratio_err,marker=markers[idx], linestyle = 'none', c=colours[T], label='{}={}'.format(Tname,T_new))
+        ax3.errorbar(dens_argon, ratio, yerr=ratio_err,marker=markers[idx], linestyle = 'none', c=colours[T], label='{}={}{}'.format(Tname,T_new,Tunit))
         if T=='1.35':
-            ax3_inset.errorbar(dens_argon, ratio, yerr=ratio_err,marker=markers[idx], markersize=6,linestyle = 'none', c=colours[T], label='{}={}'.format(Tname,T_new))
+            ax3_inset.errorbar(dens_argon, ratio, yerr=ratio_err,marker=markers[idx], markersize=6,linestyle = 'none', c=colours[T], label='{}={}{}'.format(Tname,T_new,Tunit))
         #plt.plot(JCP_rho, Woodcock(JCP_rho, eta_0, T), lw = 2.0,linestyle = 'dashed', c='r', label = "Woodcock")
         #if T=='1.35' or T=='2.5':
         #    ax1.plot(JCP_rho, JCP_eta, lw = 2.0, marker = 'x', linestyle = 'none', c=colours[T])#, label='T={}$^a$'.format(T))
@@ -278,19 +280,19 @@ def main():
             ax3.plot(LIT_rho[i], LIT_ratio[i], marker=markers[i], fillstyle='none',linestyle = 'none', c=LIT_colours[::-1][idx], label='T$^*$={}$^{}$'.format(round(LIT_T[i],2), LIT_ref[i]))
             ax3.set_xlabel('$\\rho^*$')
         else:
-            ax3.plot(LIT_rho[i], LIT_ratio[i], marker=markers[i], fillstyle='none',linestyle = 'none', c=LIT_colours[::-1][idx], label='T={}$^{}$'.format(LIT_T[i], LIT_ref[i]))
+            ax3.plot(LIT_rho[i], LIT_ratio[i], marker=markers[i], fillstyle='none',linestyle = 'none', c=LIT_colours[::-1][idx], label='T={}K$^{}$'.format(LIT_T[i], LIT_ref[i]))
             ax3.set_xlabel('$\\rho$ (g/cm$^3$)')
         if LIT_T[i]==150 or LIT_T[i]==140:
             ax3_inset.plot(LIT_rho[i], LIT_ratio[i], marker=markers[i], fillstyle='none',linestyle = 'none', c=LIT_colours[::-1][idx], label='T$^*$={}$^{}$'.format(round(LIT_T[i],2), LIT_ref[i]))
         elif LIT_T[i]==150/T_c_Ar or LIT_T[i]==140/T_c_Ar:
-            ax3_inset.plot(LIT_rho[i], LIT_ratio[i], marker=markers[i], fillstyle='none',linestyle = 'none', c=LIT_colours[::-1][idx], label='T={}$^{}$'.format(LIT_T[i], LIT_ref[i]))
+            ax3_inset.plot(LIT_rho[i], LIT_ratio[i], marker=markers[i], fillstyle='none',linestyle = 'none', c=LIT_colours[::-1][idx], label='T={}K$^{}$'.format(LIT_T[i], LIT_ref[i]))
         if idx==0:
             idx+=3
         else:
             idx+=1
     #ax3.legend(loc='upper right')
     ax3.legend(loc='upper center', ncol=3, fontsize=18)
-    fig3.savefig('PLOTS/{}_{}.pdf'.format(name_plot3,units))
+    fig3.savefig('PLOTS/{}_{}.eps'.format(name_plot3,units),format='eps', dpi=1000)
 
 
     return

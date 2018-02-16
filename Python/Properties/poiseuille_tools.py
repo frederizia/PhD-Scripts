@@ -481,15 +481,49 @@ def flux(f,w,m,e,s,force,ylo,yhi,zlo,zhi,rerun):
 
     #Jz_err = err_Jz(rho, rho_err, vel, vel_err)*convert/mol_mass_water
 
+    # values for cz, vel within zlo, zhi
+    # make data frame
+    data = {'cz':CZ, 'vel':VEL_avg}
+    DATA = pd.DataFrame(data=data)
+    #print zlo, zhi
+    DATA = DATA[DATA.cz<zhi]
+    DATA = DATA[zlo<DATA.cz]
+    CZ = DATA['cz'].tolist()
+    VEL_avg = DATA['vel'].tolist()
      
-    return intVEL
+    return intVEL, CZ, VEL_avg
 
 def vol_flow_P(dP, eta, L, D):
     Q = (-2/3)*(dP/(eta*L))*D**3
     print 'QP = ', Q, 'm^2/s.'
     return Q
 
+def viscosity(f,w,m,e,s,force,CZ, VEL, delP, L, D):
+    shift = np.min(CZ)+(np.max(CZ)-np.min(CZ))/2
+    CZ_shift = CZ-shift
+    name = '{}_{}_{}_eps{}_s{}_1'.format(f,w,m,e,s)
+    params, cov = curve_fit(lambda x, A, B: uslip(x, delP, L, D, A, B), np.array(CZ_shift)*1e-10, np.array(VEL)*(1e-10/1e-12), p0=[0.6*1e-3, 0])
+    print 'Viscosity:', params[0]*1e3, 'mPas'
+    print 'L_s:', params[1]*1e9, 'nm'
+    zdat = np.linspace(np.min(CZ), np.max(CZ), 100)
+    udat = []
+    #udat_test = []
+    for z in zdat:
+        udat.append(uslip((z-shift)*1e-10, delP, L, D, params[0], params[1])*(1e10/1e12))
+    #    udat_test.append(uslip((z-shift)*1e-10, delP, L, D, 0.6*1e-3, 0)*(1e10/1e12))
 
+    fig1 = plt.figure(figsize=(9,7)) 
+    ax1  = fig1.add_axes([0.1,0.15,0.8,0.75])
+    #ax3.plot(CZ, np.average(DEN,axis=0))
+    ax1.plot(CZ, VEL)
+    ax1.plot(zdat, udat, linestyle='dashed')
+    #ax1.plot(zdat, udat_test, linestyle='dashed')
+    ax1.set_xlabel('$z$ (\AA)')
+    ax1.set_ylabel('$v_y$ (\AA/ps)')
+
+    fig1.savefig('PLOTS/PDF/vel_z_fit_f{}_{}.pdf'.format(force,name))
+    fig1.clear()
+    return params[0]
 
 def straight_fit(x, y, xmin, xmax):
     slope, cov = curve_fit(f, np.array(x), np.array(y))
@@ -521,6 +555,10 @@ def f(x, A):
 def f1(x, A, B):
     return A*x+B
 
+def uslip(x, delP,L,D,A, B):
+
+    return (-delP/(A*L))*(D**2-x**2+2*B)
+
 
 def err_Jz (rho_list, rho_err, v_list, v_err):
     # pv_err
@@ -536,3 +574,5 @@ def err_Jz (rho_list, rho_err, v_list, v_err):
     Jz_err = (1/len(rho_list))*np.sqrt(sum(pv_err))
     return Jz_err
 
+def enh_WADs_fn(L, D, WA, Ds, eta):
+    return -(3/2)*eta*(L/D**2)*(Ds/WA)
