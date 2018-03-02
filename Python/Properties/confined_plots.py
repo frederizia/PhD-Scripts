@@ -72,7 +72,8 @@ def main():
     '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026']
     LABEL = {'C_vv': '$xyz$', 'C_vv_y': '$xy$'}
     layers =  {'6':2, '6.5':2, '7':2, '8':2, '8.5':2 ,'9':2, '9.5':3, '10':3, \
-    '11':3, '12':3, '13':4, '14':4, '15':4, '16':5, '17':5, '20':6, '22':6, '25':7,\
+    '11':3, '11.5':3, '12.1':3, '12.5':4,'13.1':4, '13.5':4,'14.1':4, '14.5':4,\
+    '15':4, '16':5, '17':5, '20':6, '22':6, '25':7,\
     '27':8, '30':9, '33':10, '35':10, '40':12}
 
 
@@ -172,7 +173,7 @@ def main():
     diff_tot_y, diff_tot, diff_tot_y_msd, diff_tot_y_msd_err = [], [], [], []
     for dz in dZ:
         for c in configs:
-            Z_init.append(dz)
+            Z_init.append(float(dz))
             count = 1
             count_list, diff_list = [], []
             f = 'spce_T298_z{}_eps1.0_{}'.format(dz,c)
@@ -188,7 +189,7 @@ def main():
                 Z = Z-Z[MID]
                 Z_left = Z[LEFT]
                 Z_right = Z[RIGHT]
-                Hlist.append(Z_right-Z_left)
+                Hlist.append(float(dz))#Z_right-Z_left)
                 height = Z_right-Z_left
                 print 'Channel height:', height
                 label = '$\Delta z = {}$ \AA'.format(dz)
@@ -346,8 +347,8 @@ def main():
                 eta_diff_wall.append(eta_diff_wall_tmp*1e3)
 
                 # bulk shear viscosity
-                print 'Reading in C_vv_{}_1_10000_z0_{}.dat'.format(f,int(dz)-1)
-                C_vv_array = np.loadtxt("Water_Graphene/C_vv_{}_1_10000_z0_{}.dat".format(f, int(dz)-1))
+                print 'Reading in C_vv_{}_1_10000_z0_{}.dat'.format(f,int(float(dz))-1)
+                C_vv_array = np.loadtxt("Water_Graphene/C_vv_{}_1_10000_z0_{}.dat".format(f, int(float(dz))-1))
                 times =  C_vv_array[:,0]
                 C_vv_ave = C_vv_array[:,1]
                 diff_tot_tmp = diffusion(C_vv_ave, dt, time_conv, space_conv, 'C_vv')
@@ -357,8 +358,9 @@ def main():
 
                 # bulk shear viscosity surface
                 # diff from vacf
-                print 'Reading in C_vv_y_{}_1_10000_z0_{}.dat'.format(f,int(dz)-1)
-                C_vv_array = np.loadtxt("Water_Graphene/C_vv_y_{}_1_10000_z0_{}.dat".format(f, int(dz)-1))
+                diff_bulk = 2.86624087647e-09
+                print 'Reading in C_vv_y_{}_1_10000_z0_{}.dat'.format(f,int(float(dz))-1)
+                C_vv_array = np.loadtxt("Water_Graphene/C_vv_y_{}_1_10000_z0_{}.dat".format(f, int(float(dz))-1))
                 times =  C_vv_array[:,0]
                 C_vv_ave = C_vv_array[:,1]
                 diff_tot_y_tmp = diffusion(C_vv_ave, dt, time_conv, space_conv, 'C_vv_y')
@@ -403,12 +405,12 @@ def main():
                 
 
                 # effective shear viscosity (GK)
-                print 'Reading in visc.{}'.format(f,int(dz)-1)
+                print 'Reading in visc.{}'.format(f)
                 eta_gk_tmp = visc_gk(f, height, 'etas','eff')
                 eta_tot_gk.append(eta_gk_tmp*1e3)
 
                 # parallel shear viscosity (GK)
-                print 'Reading in visc.{}'.format(f,int(dz)-1)
+                print 'Reading in visc.{}'.format(f)
                 eta_gk_xy_tmp = visc_gk(f, height, 'etas', 'xy')
                 eta_xy_gk.append(eta_gk_xy_tmp*1e3)
 
@@ -420,7 +422,7 @@ def main():
                 print 'The viscosities from GK are:', eta_gk_tmp*1e3, eta_gk_xy_tmp*1e3 #, eta_gk_acf_tmp*1e3
 
                 # bulk viscosity
-                print 'Reading in visc.{}'.format(f,int(dz)-1)
+                print 'Reading in visc.{}'.format(f)
                 kappa_gk_tmp = visc_gk(f, height, 'etab','nvt')
                 kappa_tot_gk.append(kappa_gk_tmp*1e3)
                 kappa_eta_tot.append(kappa_gk_tmp/eta_gk_xy_tmp)
@@ -545,16 +547,16 @@ def main():
 
     # average over input configurations
     if len(configs)>1:
-        Z, Hlist, Hlist_err = averaging(Z_init,Hlist)
-        Z, eta_diff_wall, eta_diff_wall_err = averaging(Z_init,eta_diff_wall)
-        Z, eta_diff_tot, eta_diff_tot_err = averaging(Z_init,eta_diff_tot)
-        Z, eta_diff_tot_y, eta_diff_tot_y_err = averaging(Z_init,eta_diff_tot_y)
-        Z, eta_tot_gk, eta_tot_gk_err = averaging(Z_init,eta_tot_gk)
-        Z, eta_xy_gk, eta_xy_gk_err = averaging(Z_init,eta_xy_gk)
-        Z, diff_tot_y, diff_tot_y_err = averaging(Z_init,diff_tot_y)
-        Z, diff_tot_y_msd, diff_tot_y_msd_err = averaging(Z_init,diff_tot_y_msd)
-        Z, kappa_tot_gk, kappa_tot_gk_err = averaging(Z_init,kappa_tot_gk)
-        Z, kappa_eta_tot, kappa_eta_tot_err = averaging(Z_init,kappa_eta_tot)
+        Z_final, Hlist, Hlist_err = averaging(Z_init,Hlist)
+        Z_final, eta_diff_wall, eta_diff_wall_err = averaging(Z_init,eta_diff_wall)
+        Z_final, eta_diff_tot, eta_diff_tot_err = averaging(Z_init,eta_diff_tot)
+        Z_final, eta_diff_tot_y, eta_diff_tot_y_err = averaging(Z_init,eta_diff_tot_y)
+        Z_final, eta_tot_gk, eta_tot_gk_err = averaging(Z_init,eta_tot_gk)
+        Z_final, eta_xy_gk, eta_xy_gk_err = averaging(Z_init,eta_xy_gk)
+        Z_final, diff_tot_y, diff_tot_y_err = averaging(Z_init,diff_tot_y)
+        Z_final, diff_tot_y_msd, diff_tot_y_msd_err = averaging(Z_init,diff_tot_y_msd)
+        Z_final, kappa_tot_gk, kappa_tot_gk_err = averaging(Z_init,kappa_tot_gk)
+        Z_final, kappa_eta_tot, kappa_eta_tot_err = averaging(Z_init,kappa_eta_tot)
 
     else:
         Hlist_err = [0]*len(Hlist)
@@ -566,8 +568,9 @@ def main():
         diff_tot_y_err = [0]*len(diff_tot_y)
         kappa_tot_gk_err = [0]*len(kappa_tot_gk)
         kappa_eta_tot_err = [0]*len(kappa_eta_tot)
+        Z_final = Z_init
 
-    print diff_tot_y_msd_err
+
     # print to csv for latex use
     with open('DATA/heights_{}.csv'.format(z_name), 'wb') as csvfile:
         writer = csv.writer(csvfile)
@@ -576,6 +579,7 @@ def main():
 
 
     print '\n#-----------------------Final plotting------------------\n#'
+
 
     #ax1.set_xlabel('region')
     ax1.set_ylabel('$D_s/D_{\mathrm{iso}}$')
@@ -597,13 +601,13 @@ def main():
     #    ax3.plot(Hfit, diff_fit, c=colours[0], linestyle='dashed', marker='None')
     #    Hfit, rho_fit = exp_fit(Hlist, rho_list, 1, 40)
     #    ax3b.plot(Hfit, rho_fit, c=colours[6], linestyle='dashed', marker='None')
-    ax3.plot(Hlist, d_list, c=colours[0], linestyle='dashed', marker='D')
+    ax3.errorbar(Hlist, d_list, yerr=d_list_err, c=colours[0], linestyle='dashed', marker='D')
     ax3.set_ylabel('$D_{||}/D_{\mathrm{iso}}$')
     #ax3.set_ylim(0,1.3)
     ax3.yaxis.label.set_color(colours[0])
     for tl in ax3.get_yticklabels():   
         tl.set_color(colours[0])
-    ax3b.plot(Hlist, rho_list, c=colours[6], linestyle='dashed', marker='o')
+    ax3b.errorbar(Hlist, rho_list, yerr=rho_list_err, c=colours[6], linestyle='dashed', marker='o')
     #ax3b.set_ylabel('$\\rho_{\mathrm{wall}}$ (g/cm$^3$)', rotation=270)
     #ax3b.yaxis.label.set_color(colours[6])
     fig3.text(0.975, 0.5, '$\\rho_{\mathrm{wall}}$ (g/cm$^3$)', color=colours[6], ha='center', va='center', fontsize=24,rotation=270)
@@ -685,7 +689,7 @@ def main():
     ax12.legend()
 
     ax12a.set_yscale('log')
-    ax12a.errorbar(Hlist, eta_tot_gk, yerr=eta_tot_gk_err, marker='o', label='$\eta_{\mathrm{eff}}$')
+    #ax12a.errorbar(Hlist, eta_tot_gk, yerr=eta_tot_gk_err, marker='o', label='$\eta_{\mathrm{eff}}$')
     ax12a.errorbar(Hlist, eta_xy_gk, yerr=eta_xy_gk_err, marker='o', label='$\eta_{\mathrm{||}}$')
     ax12a.plot(Hlist, len(Hlist)*[0.67], linestyle='dashed', label='Bulk')
     #ax12a.semilogy(Hlist, eta_tot_gk, marker='o', label='$\eta_{\mathrm{eff}}$')
@@ -700,10 +704,10 @@ def main():
     ax13.plot(1/np.array(diff_tot_y), eta_xy_gk, ls='None', marker='o', label='Green-Kubo')
     ax13.set_xlabel('$1/D_s$ ($10^{9}$s/m$^2$)')
     ax13.set_ylabel('$\eta$ (mPas)')
-    ax13.set_xlim(0,10)
-    ax13.set_ylim(0,25)
-    #ax13.set_xlim(0.2,0.8)
-    #ax13.set_ylim(0.4,1)
+    #ax13.set_xlim(0,10)
+    #ax13.set_ylim(0,25)
+    ax13.set_xlim(0.2,2.0)
+    ax13.set_ylim(0,5)
     ax13.legend()
 
     ax14.errorbar(Hlist, kappa_tot_gk, yerr=kappa_tot_gk_err, marker='o')

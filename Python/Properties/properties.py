@@ -154,7 +154,7 @@ def main():
         ax10  = fig10.add_axes([0.1,0.15,0.8,0.75])
 
         if fluid == 'CO2':
-            saft_term = 'Dimer'
+            saft_term = 'dimer'
             #Kvib = kappa_vib(temp)
             #print Kvib
             
@@ -164,7 +164,7 @@ def main():
             saft_term = ''
         markers = ['D', 's', 'v', '^', 'd', '*']
         legend_names = {'spce':'SPC/E', 'tip4p':'TIP4P/2005', 'TraPPE': 'TraPPE', 'SAFT': 'SAFT %s'%saft_term, \
-        'SAFT1': 'SAFT Monomer', 'TraPPEnc': 'TraPPE (no charges)', 'OPLS': 'OPLS (flexible)',\
+        'SAFT1': 'SAFT monomer', 'TraPPEnc': 'TraPPE (no charges)', 'OPLS': 'OPLS (flexible)',\
         'SAFT1_rc2.5': 'SAFT (rc=2.5)', '12_6':'12-6 model', '12_6_rcsaft': '12-6 model (rc from SAFT)',\
         '12_6_23_666': '12-6 model (SAFT exponents)',
         'SAFTflex': 'SAFT Dimer (flexible II)', 'EPM2':'EPM2', 'SAFTrigid': 'SAFT (rigid)',\
@@ -261,9 +261,9 @@ def main():
             rho_dat, diff_dat, diff_err     = averaging(rho_dat_init, diff_dat)
             rho_dat, bulk_plus_dat, bulk_plus_err   = averaging(rho_dat_init, bulk_plus_dat)
             rho_dat, ratio_plus_dat, ratio_plus_err   = averaging(rho_dat_init, ratio_plus_dat)
-            if (m=='tip4p' or m=='spce') and temp=='300' and shear_vacf_dat != []:
-                rho_dat, shear_vacf_dat, shear_vacf_err   = averaging(rho_dat_init, shear_vacf_dat)#, shear_err)
-                rho_dat, diff_vacf_dat, diff_vacf_err   = averaging(rho_dat_init, diff_vacf_dat)
+            #if (m=='tip4p' or m=='spce') and temp=='300' and shear_vacf_dat != []:
+            #    rho_dat, shear_vacf_dat, shear_vacf_err   = averaging(rho_dat_init, shear_vacf_dat)#, shear_err)
+            #    rho_dat, diff_vacf_dat, diff_vacf_err   = averaging(rho_dat_init, diff_vacf_dat)
             
             print 'Diffusion for %s' % m,'at P=1bar:', diff_dat[0], '+/-', diff_err[0]
             print 'Shear viscosity for %s' % m,'at P=1bar:', shear_dat[0], '+/-', shear_err[0]
@@ -309,7 +309,18 @@ def main():
 
 
             # Plotting
-            ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(legend_names[m]))
+            if m=='SAFT1' and fluid=='Water':
+                if temp=='300':
+                    label_tmp = 'SAFT CGW1-ift'
+                else:
+                    label_tmp = 'SAFT CGW1-vle'
+            elif m=='SAFT1vle':
+                label_tmp = 'SAFT CGW1-vle'
+            elif m=='SAFT1ift':
+                label_tmp = 'SAFT CGW1-ift'
+            else:
+                label_tmp = legend_names[m]
+            ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(label_tmp))
             ax1.set_xlabel('P (bar)')
             ax1.set_ylabel('$\\rho$ (g/cm$^3$)')
             ax1.legend()

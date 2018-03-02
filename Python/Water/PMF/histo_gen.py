@@ -105,6 +105,8 @@ def main():
     data = []
     print K
 
+    matplotlib.rcParams['mathtext.fontset'] = 'stix'
+
     fig1 = plt.figure(figsize=(9,7))
     ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
     # Loop over all collected data
@@ -130,7 +132,7 @@ def main():
                 fig = plt.figure()
                 ax = fig.add_subplot(111)
 
-                plt.xlabel('$z$ ($\AA$)')
+                plt.xlabel('$z$ (\AA)')
                 plt.ylabel('hist')
                 #plt.plot(z_bins, z_frames)
                 ax.hist(DATA, 50, facecolor='b', alpha=0.5)
@@ -158,8 +160,8 @@ def main():
         	print filename
         	print 'File does not exist.'
         	continue
-    ax1.set_xlabel('z (\AA)')
-    ax1.set_ylabel('$p_0$ (z)')
+    #ax1.set_xlabel('z (\AA)')
+    #ax1.set_ylabel('$\mathcal{P}_b$ (z)')
     #ax1.set_ylim(-100,400)
     ax1.set_xlim(40,60)
     ax1.legend()
