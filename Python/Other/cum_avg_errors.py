@@ -53,6 +53,29 @@ def split_values(vals):
 
     return np.array(single_vals)
 
+def blockAverage(data):
+
+    DataLen     = len(data) 
+    BlockSize   = 100       # max: 4 blocs (otherwise can't calc variance)
+  
+    NoBlocks    = int(DataLen/BlockSize)               # total number of such blocks in datastream
+    print NoBlocks
+    Data        = np.zeros(NoBlocks)                  # container for parcelling block 
+
+    # Loop to chop datastream into blocks
+    # and take average
+    for i in range(1,NoBlocks+1):
+        
+        istart = (i-1) * BlockSize
+        iend   =  istart + BlockSize
+        Data[i-1] = np.mean(data[istart:iend])
+
+    meanVal  = np.mean(Data)
+    meanErr  = np.sqrt(np.var(Data)/(NoBlocks - 1))
+
+
+    return meanVal, meanErr
+
 def error_calc(p_vals):
     N = len(p_vals)
     stdev = np.std(p_vals)
@@ -65,7 +88,7 @@ def write_file(t_steps, vals, p_vals, lbl, idx):
     f = open('%s/%s_%i.dat'%(cwd,lbl, idx),'w+')
     
     write_values = np.array([t_steps, vals, p_vals]).T
-    np.savetxt(f, write_values, header='cum. avg. values | single values')
+    np.savetxt(f, write_values, fmt='%.1d, %.6f, %.6f', header='steps | cum. avg. values | single values')
  
     return 
 
@@ -83,11 +106,12 @@ def main():
     pure_values = split_values(values)
 
     # calculate error
-    error = error_calc(pure_values)
+    #error = error_calc(pure_values)
+    BA = blockAverage(pure_values)
 
     print 'The final averaged value is', values[-1]
-    print 'The mean is', pure_values.mean()
-    print 'The error is', error
+    print 'The mean is', BA[0] #pure_values.mean()
+    print 'The error is', BA[1] #error
 
     write_file(timesteps, values, pure_values, label, index)
 

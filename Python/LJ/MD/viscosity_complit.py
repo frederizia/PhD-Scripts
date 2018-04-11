@@ -25,11 +25,22 @@ def GetArgs():
                         help="Rerun", default='n')
     parser.add_argument("-rc", type=str, nargs='+', \
                         help="Rerun", default=['5.5'])
-
+    parser.add_argument('-ext', '--ext', nargs=1, type=str, \
+                        required=False, default='n', action='store')
     args = parser.parse_args()
     return args
 
+def split_values(vals):
 
+    N = 1
+    single_vals = []
+    single_vals.append(vals[0])
+    for i in range(1,len(vals)):
+        N += 1
+        true_v = N*vals[i] - (N-1)*vals[i-1]
+        single_vals.append(true_v)
+
+    return np.array(single_vals)
 
 def read_log(T, den,rcut):
 
@@ -102,7 +113,8 @@ def prop(PROP,T,den,rcut):
         if t > tlim:
             Prop_list.append(p)
             count += 1
-    Prop_val, Prop_err = blockAverage(Prop_list)
+    Prop_split = split_values(Prop_list)
+    Prop_val, Prop_err = blockAverage(Prop_split)
     print PROP, ':', Prop_val, '+/-', Prop_err
     return Prop_val, Prop_err
 
@@ -126,6 +138,7 @@ def main():
     dens = args.rhof
     rerun = args.r[0]
     rcut = args.rc
+    ext = args.ext[0]
     #rc    = 5.5
 
     fig1 = plt.figure(figsize=(9,7))
@@ -191,8 +204,9 @@ def main():
             ratio_err = []
             for s,se,b,be in itertools.izip(final_data[:,2],final_data[:,3],final_data[:,4],final_data[:,5]):
                 ratio.append(b/s)
-                r_err = (b/2)*np.sqrt((se/s)**2+(be/b)**2)
+                r_err = (b/s)*(1/2)*np.sqrt((se/s)**2+(be/b)**2)
                 ratio_err.append(r_err)
+
 
             try:
                 JCP_rho, JCP_eta = read_data('Eta',T)
@@ -222,14 +236,14 @@ def main():
             ax1.errorbar(dens_new,shear,yerr=shear_err, ls='None', marker=markers[idx], c=colours[colidx],label=label)
             ax1.set_xlabel('$\\rho^*$')
             ax1.set_ylabel('$\eta^*$')
-            ax1.set_xlim(0,0.9)
+            ax1.set_xlim(0,0.95)
             ax1.set_ylim(0,4)
             ax1.legend()
 
             ax2.errorbar(dens_new,bulk,yerr=bulk_err, ls='None', marker=markers[idx], c=colours[colidx],label=label)
             ax2.set_xlabel('$\\rho^*$')
             ax2.set_ylabel('$\kappa^*$')
-            ax2.set_xlim(0,0.9)
+            ax2.set_xlim(0,0.95)
             ax2.set_ylim(0,1.5)
             ax2.legend()
 
@@ -237,7 +251,7 @@ def main():
             ax3.errorbar(dens_new,ratio,yerr=ratio_err, ls='None', marker=markers[idx], c=colours[colidx],label=label)
             ax3.set_xlabel('$\\rho^*$')
             ax3.set_ylabel('$\kappa^*/\eta^*$')
-            ax3.set_xlim(0,0.9)
+            ax3.set_xlim(0,0.95)
             ax3.set_ylim(0,4)
             ax3.legend()
 
@@ -249,13 +263,15 @@ def main():
 
 
     #ax3.legend(loc='upper center', ncol=3, fontsize=18)
-    #fig1.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot1,nameT,namerc))
-    #fig2.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot2,nameT,namerc))
-    #fig3.savefig('PLOTS/{}{}_rc{}.pdf'.format(name_plot3,nameT,namerc))
-    fig1.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot1,nameT,namerc),format='eps', dpi=1000)
-    fig2.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot2,nameT,namerc),format='eps', dpi=1000)
-    fig3.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot3,nameT,namerc),format='eps', dpi=1000)
 
+    if ext == 'eps':
+        fig1.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot1,nameT,namerc),format='eps', dpi=1000)
+        fig2.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot2,nameT,namerc),format='eps', dpi=1000)
+        fig3.savefig('PLOTS/{}{}_rc{}.eps'.format(name_plot3,nameT,namerc),format='eps', dpi=1000)
+    else:
+        fig1.savefig('PLOTS/{}{}_rc{}.{}'.format(name_plot1,nameT,namerc,ext))
+        fig2.savefig('PLOTS/{}{}_rc{}.{}'.format(name_plot2,nameT,namerc,ext))
+        fig3.savefig('PLOTS/{}{}_rc{}.{}'.format(name_plot3,nameT,namerc,ext))
     #plt.show()
 
     return

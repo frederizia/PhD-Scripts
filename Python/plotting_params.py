@@ -2,7 +2,7 @@
 import matplotlib as mpl
 from cycler import cycler
 
-mpl.rc('lines', linewidth=2, markersize=9, markeredgewidth=1.0)
+mpl.rc('lines', linewidth=2.5, markersize=9, markeredgewidth=1.0)
 mpl.rc('font', size=22, **{'family': 'serif', 'serif': ['Palatino']})
 mpl.rc('text', usetex=True)
 mpl.rc('legend', framealpha=None)

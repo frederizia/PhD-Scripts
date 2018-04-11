@@ -17,18 +17,19 @@ def GetArgs():
     parser.add_argument('-p', '--pressure', nargs='+', required=False, default='liquid', action='store',
                        help='Target pressure of bulk system')
     parser.add_argument('-e', '--ext', nargs=1, type=str, required=False, default=['pdf'], action='store')
+    parser.add_argument('-d', '--den', nargs=1, type=str, required=False, default=[6], action='store')
     
     args = parser.parse_args()
     return args
 
-def coords(fluid,f):
+def coords(fluid,f,i):
     filename = '/media/fred/8TB/Bulk_properties/{}/log.{}'.format(fluid,f)
     f = open(filename,'r')
 
     data = f.read()
     data_lines = data.split('\n')
 
-    coord_line = re.sub('[\(\)]', '', data_lines[25]).split('=')[1].split('to')
+    coord_line = re.sub('[\(\)]', '', data_lines[i]).split('=')[1].split('to')
     xlo, ylo, zlo = coord_line[0].strip(' ').split(' ')
     xhi, yhi, zhi = coord_line[1].strip(' ').split(' ')
 
@@ -67,15 +68,24 @@ def main():
     model = args.model[0]
     press = args.pressure
     ext = args.ext[0]
-    d = 6
+    d = args.den[0]
     T = 300
     fluid = 'CO2'
 
     Nconf = 1000
-    Ndiv = 50
+    Ndiv = 100
 
     if fluid == 'CO2':
         lims = (0, 1.4)
+        if model == 'EPM2rigid' and d=='6':
+            Natom = 6144
+            idx = 25
+        elif model == 'EPM2rigid' and d=='5':
+            Natom = 6144
+            idx = 26
+        elif model == 'SAFT':
+            Natom = 4096
+            idx = 39
     elif fluid == 'Water':
         lims = (0,3.5)
 
@@ -101,11 +111,11 @@ def main():
         filename = '{}_T{}_P{}_{}'.format(model,T,p,d)
         print '\n\nReading in', filename
         print '\n#-----------------------Finding box dimensions------------------#\n\n'
-        xlo, xhi, ylo, yhi, zlo, zhi = coords(fluid,filename)
+        xlo, xhi, ylo, yhi, zlo, zhi = coords(fluid,filename,idx)
         offset = -xlo
         boxlength = xhi-xlo
         avg_dens = avg_density(fluid,filename)
-        delta_r = 0.04/avg_dens #boxlength/1400
+        delta_r = 0.02/avg_dens #boxlength/1400
         print 'Box dimensions: ( {}, {}, {}), ({}, {}, {})'.format(xlo, ylo, zlo, xhi, yhi, zhi)
         print 'Box offset:', offset
         print 'Box length:', boxlength
@@ -115,7 +125,7 @@ def main():
 
         print '\n#-----------------------Amending files------------------#\n\n'
         # replace box dimensions in files
-        inp_cmd = 'sed -e "2s/CONF/{}/g" -e "6s/LEN/{}/g" -e "8s/DIV/{}/g" -e "10s/DR/{}/g" data_tmp.inp > data.inp'.format(Nconf, boxlength,Ndiv,delta_r)
+        inp_cmd = 'sed -e "2s/CONF/{}/g" -e "4s/ATOM/{}/g" -e "6s/LEN/{}/g" -e "8s/DIV/{}/g" -e "10s/DR/{}/g" data_tmp.inp > data.inp'.format(Nconf, Natom, boxlength,Ndiv,delta_r)
         subprocess.Popen(inp_cmd, shell=True)
         print 'data.inp: Done'
 
@@ -149,21 +159,22 @@ def main():
         width = RHOax[1]-RHOax[0]
         #RHOax = RHOax+width/2
 
-
+        ylim = 0.15
+        Yave = np.linspace(0,ylim,10)
         if fluid == 'CO2' and p == '1':
             lims = (0,0025)
 
         ax1.bar(RHOax, Yax, width,color=colours[0], alpha=0.9)
-        ax1.plot([avg_dens]*len(Yax), Yax, c=colours[6], linestyle='dotted')
+        ax1.plot([avg_dens]*len(Yave), Yave, c=colours[6], linestyle='dotted')
         ax1.set_xlabel('$\\rho$ (g/cm$^3$)')
         ax1.set_ylabel('Frequency')
         ax1.set_xlim(lims)
-        ax1.set_ylim(0,0.35)
+        ax1.set_ylim(0,ylim)
         fig1.savefig('PLOTS/{}/hist_{}_T{}_P{}_{}.{}'.format(ext,model, T, p, d, ext))
         print 'Plot saved'
         #plt.show()
 
-        print '\n#-----------------------Plotting finished------------------\n#'
+        print '\n#-----------------------Plotting finished------------------#\n\n'
     print '\n#-----------------------Done------------------\n#'
     return
 

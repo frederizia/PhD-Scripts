@@ -36,34 +36,37 @@ def read_log(f,m,T,P,idx,rhos):
 
 def read_msd(f,m,T,P, idx, rhos):
     '''Code to read in msd file'''
+
     try:
         if rhos != 'None':
             filename = '%s/msd.%s_T%s_z%s_eps%s_rhos%s'%(f,m,T,P, idx, rhos)
         else:    
             filename = '%s/msd.%s_T%s_P%s_%s'%(f,m,T,P,idx)
-        f = open(filename,'r')
+
     except:
         filename = '%s/msd.%s_T%s_z%s_eps%s_%s'%(f,m,T,P,idx,rhos)
-        f = open(filename,'r')
-    data = f.read()
-    data_lines = data.split('\n')
 
-    ts = []
-    msd_x = []
-    msd_y = []
-    msd_z = []
-    msd_tot = []
-    flag=0
-    for i in range(2,len(data_lines)-1):
-        ts.append(float(data_lines[i].split()[0]))
-        msd_x.append(float(data_lines[i].split()[1]))
-        msd_y.append(float(data_lines[i].split()[2]))
-        msd_z.append(float(data_lines[i].split()[3]))
-        msd_tot.append(float(data_lines[i].split()[4]))
+    if m == 'tip4p' or m == 'TraPPErigid' or 'EPM2' in m:
+        tlim = 2000000
+    else:
+        tlim = 8000000
 
-    ts, msd_x, msd_y, msd_z, msd_tot = np.array(ts), np.array(msd_x), np.array(msd_y), np.array(msd_z), np.array(msd_tot)
+    dt = 0.0005
 
-    return ts, msd_x, msd_y, msd_z, msd_tot
+    df = pd.read_csv(filename, delimiter=' ', skiprows=2)
+    #read first two lines
+    with open(filename, 'r') as f:
+        _, line2 = f.readline(), f.readline()
+    cols = line2.lstrip('#').strip().split(' ')
+    df.columns = cols
+    df   = df[df.TimeStep>=tlim]
+    MSDx = df['c_rmsd[1]'].tolist()
+    MSDy = df['c_rmsd[2]'].tolist()
+    MSDz = df['c_rmsd[3]'].tolist()
+    MSDtot = df['c_rmsd[4]'].tolist()
+    T = df['TimeStep']*dt
+
+    return T, MSDx, MSDy, MSDz, MSDtot
 
 def read_dens(f,m,T,P, eps, rhos):
     '''Code to read in density file'''
@@ -566,7 +569,7 @@ class bulk_properties:
         ratio = self.bulk()/self.shear()
         return ratio
 
-    def diff(self,tstamp, dt):
+    def diff_backup(self,tstamp, dt):
         data = self.msd
         if self.m == 'tip4p' or self.m == 'TraPPErigid' or 'EPM2' in self.m:
             tstamp = 2000000
@@ -583,8 +586,45 @@ class bulk_properties:
 
         return diff
 
-    def diff2(self):
-        C_vv_array = np.loadtxt("{}/C_vv_{}_T{}_P{}_{}_1_1000_z0_30.dat".format(self.f,self.m, self.T,self.P, self.idx))
+    def diff(self):
+
+        space_convert = 1e-20
+        time_convert = 1e-12
+        T, MSDx, MSDy, MSDz, MSDtot = self.msd
+        
+        dT = np.max(T)-np.min(T)
+
+        # fit
+        T_fit, msdfit_x, slope_x, slope_x_err = self.straight_fit(T, MSDx, np.min(T), np.max(T))
+        T_fit, msdfit_y, slope_y, slope_y_err = self.straight_fit(T, MSDy, np.min(T), np.max(T))
+        T_fit, msdfit_z, slope_z, slope_z_err = self.straight_fit(T, MSDz, np.min(T), np.max(T))
+
+        # diffusion coefficients
+        diff_x = (slope_x/2)*(space_convert/time_convert)
+        diff_y = (slope_y/2)*(space_convert/time_convert)
+        diff_z = (slope_z/2)*(space_convert/time_convert)
+        # errors
+        diff_x_err = (slope_x_err/2)*(space_convert/time_convert)
+        diff_y_err = (slope_y_err/2)*(space_convert/time_convert)
+        diff_z_err = (slope_z_err/2)*(space_convert/time_convert)
+
+        diff_ave = (diff_x+diff_y+diff_z)/3
+        diff_ave_err = (1/3.)*np.sqrt(diff_x_err**2+diff_y_err**2+diff_z_err*2)
+
+        return diff_ave, diff_ave_err
+
+    def straight_fit(self,x, y, xmin, xmax):
+        params , cov = curve_fit(f1, np.array(x), np.array(y), bounds=(0, np.inf))
+        slope, inter = params[0], params[1]
+        slope_err = np.sqrt(np.diag(cov))[0]
+        xdat = np.linspace(xmin, xmax, 100)
+        fit = []
+        for x in xdat:
+            fit.append(slope*x+inter)
+        return xdat, fit, slope, slope_err
+
+    def diff2(self,steps):
+        C_vv_array = np.loadtxt("{}/C_vv_{}_T{}_P{}_{}_1_{}_z0_30.dat".format(self.f,self.m, self.T,self.P, self.idx, steps))
         times =  C_vv_array[:,0]
         C_vv_ave = C_vv_array[:,1]
 
@@ -605,14 +645,14 @@ class bulk_properties:
 
         return diff_3d_si
 
-    def shear_diff(self, opt):
+    def shear_diff(self, opt, steps):
         kB = 1.38*1e-23
         a = 1.7*1e-10
         T = self.temp()
         if opt == 'msd':
-            diff  = self.diff(8000000,6000000)[-1]*1e-9
+            diff  = self.diff()[0]
         if opt == 'vacf':
-            diff  = self.diff2()
+            diff  = self.diff2(steps)
         eta = (kB*T)/(3*np.pi*a*diff)
         print diff, eta
         return eta*1e3
