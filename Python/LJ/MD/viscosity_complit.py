@@ -222,7 +222,7 @@ def main():
                 print 'No literature data available for T=', T
 
             if len(rcut)>1:
-                label = '$r_{\mathrm{cut}}$ = %s'%(rc)
+                label = '$r_{\mathrm{c}}$ = %s'%(rc)
                 colidx = idx
             else:
                 label = 'T$^*$ = {}'.format(T)

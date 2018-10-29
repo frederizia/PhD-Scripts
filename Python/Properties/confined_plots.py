@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Quick diffusion coefficient calculation given VACF
+# Plots for confined water data
 
 import argparse
 import matplotlib.pyplot as plt
@@ -11,6 +11,9 @@ from scipy.integrate import simps
 from itertools import izip,imap
 from confined_tools import *
 from matplotlib import cm
+from matplotlib import ticker
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
 
 def GetArgs():
     ## Parse command line arguments 
@@ -21,7 +24,7 @@ def GetArgs():
                        help='Which region? wall, intermediate, bulk')
     parser.add_argument('-u', '--units', required=False, type=str, action='store', default=[0,100],
                         help='metal or real')
-    parser.add_argument('-p', '--pre', nargs='+', required=False, type=str, action='store', default='C_vv',
+    parser.add_argument('-p', '--pre', nargs='+', required=False, type=str, action='store', default=['C_vv'],
                         help='C_vv or C_vv_y')
     parser.add_argument('-n', '--name', required=False, default='None', action='store',
                        help='Plot name')
@@ -65,7 +68,7 @@ def main():
     # Definitions
     fig_size_long = (14,5)
     fig_size_sq   = (9,7)
-    fig_size_sq2 = (7,9)
+    fig_size_sq2 = (6,9)
 
     markers = ['o', 'D', 's', 'v', '^', 'd', '*', '>', '<', 'P','X', '8', 'p',\
     'o', 'D', 's', 'v', '^', 'd', '*', '>', '<', 'P','X', '8', 'p',\
@@ -80,7 +83,7 @@ def main():
     
 
 
-    ls = ['-', '--', ':', ':']
+    ls = ['--','-', '--', '-.', ':','-', '--', '-.', ':']
 
     # ------------------- Initialise figures -----------------------
 
@@ -98,6 +101,8 @@ def main():
 
     # density profile sideways
     fig2a = plt.figure(figsize=fig_size_sq2)
+    # density profile errorbar
+    fig2b = plt.figure(figsize=fig_size_sq)
 
     # stress profile
     fig4 = plt.figure(figsize=fig_size_sq)
@@ -146,7 +151,7 @@ def main():
     ax14  = fig14.add_axes([0.15,0.15,0.75,0.75])
 
     # kappa/eta
-    fig15 = plt.figure(figsize=fig_size_sq)
+    fig15 = plt.figure(figsize=fig_size_long)
     ax15  = fig15.add_axes([0.15,0.15,0.75,0.75])
 
     # diffusion
@@ -166,6 +171,10 @@ def main():
     # friction coeff
     fig18 = plt.figure(figsize=fig_size_sq)
     ax18  = fig18.add_axes([0.15,0.15,0.75,0.75])
+
+    # fric and ls
+    fig18a = plt.figure(figsize=fig_size_long)
+    ax18a  = fig18a.add_axes([0.15,0.15,0.75,0.75])
 
     # work of adhesion
     fig19 = plt.figure(figsize=fig_size_sq)
@@ -193,6 +202,51 @@ def main():
     # Ds/Wa channel length enhancement
     fig22b = plt.figure(figsize=fig_size_sq)
     ax22b  = fig22b.add_axes([0.15,0.15,0.75,0.75])
+
+    # Ds and eta comb
+    fig23 = plt.figure(figsize=fig_size_sq)
+    #ax23  = fig23.add_axes([0.15,0.15,0.75,0.75])
+
+    # Ds, eta, kappa/eta comb
+    fig24 = plt.figure(figsize=(9,9))
+
+    # VACF wall bulk
+    fig25 = plt.figure(figsize=fig_size_sq)
+
+
+    # VACF comp
+    fig26 = plt.figure(figsize=fig_size_sq)
+    ax26  = fig26.add_axes([0.15,0.15,0.75,0.75])
+
+    # VACF comp msd
+    fig26a = plt.figure(figsize=fig_size_sq)
+    ax26a  = fig26a.add_axes([0.15,0.15,0.75,0.75])
+    ax26a_i  = fig26a.add_axes([0.35,0.63,0.25,0.25])
+
+    # Pressure (H)
+    fig27 = plt.figure(figsize=fig_size_sq)
+    ax27  = fig27.add_axes([0.15,0.15,0.75,0.75])
+
+    # Pressure T max (H)
+    fig27a = plt.figure(figsize=fig_size_sq)
+    ax27a  = fig27a.add_axes([0.15,0.15,0.75,0.75])
+
+    # Rho_ave (H)
+    fig28 = plt.figure(figsize=fig_size_sq)
+    ax28  = fig28.add_axes([0.15,0.15,0.75,0.75])
+
+    # Pave vs Kappa (H)
+    fig29 = plt.figure(figsize=fig_size_sq)
+    ax29  = fig29.add_axes([0.15,0.15,0.75,0.75])
+
+    # rho configs
+    fig30 = plt.figure(figsize=fig_size_sq)
+    ax30  = fig30.add_axes([0.15,0.15,0.75,0.75])
+
+    # area density
+    fig31 = plt.figure(figsize=fig_size_sq)
+    ax31  = fig31.add_axes([0.15,0.15,0.75,0.75])
+
 
     # 2d dens
     #fig8 = plt.figure(figsize=fig_size_sq)
@@ -226,9 +280,11 @@ def main():
     oh_flag = 0
     eta0 = 0.67 #mPas
     k0 = 2.7 #Angstrom
+    Pave_tot, PTmax, rhoave, area_rho, rhoeff = [], [], [], [], []
     eta_diff_wall, eta_diff_tot, eta_diff_tot_y, eta_tot_gk, eta_tot_gk_acf, eta_xy_gk = [], [], [], [], [], []
     kappa_tot_gk, kappa_eta_tot, fric, wa, Ls_fric, Ls_wa = [], [], [], [], [], []
     diff_tot_y, diff_tot, diff_tot_y_msd, diff_tot_y_msd_err = [], [], [], []
+    count_tmp = 0
     for dz in dZ:
         for c in configs:
             Z_init.append(float(dz))
@@ -237,13 +293,44 @@ def main():
             f = 'spce_T298_z{}_eps1.0_{}'.format(dz,c)
             print '\n#-----------------------dz = {}, DEN = {}------------------\n#'.format(dz,c)
 
+            # area density
+            try:
+                area_xy = geometry(DIR,f)[0]
+
+                # find number of atoms
+                file = open('Water_Graphene/{}/log.{}'.format(DIR,f),'r')
+
+                data = file.read()
+                data_lines = data.split('\n')
+
+                DATA = []
+                flag=0
+                for i in range(len(data_lines)-1):
+                    if data_lines[i].split() != [] and data_lines[i].split()[0] == 'group' and data_lines[i].split()[1] == 'oxygen':
+                        numwater = int(data_lines[i+1].split()[0])
+                        break
+                area_dens = numwater/(area_xy*1e-2)
+                area_rho.append(area_dens)
+
+                RHOeff = avg_density('Water_Graphene', f, DIR)
+                if DIR == 'RHO1.1':
+                        RHOeff *= (float(dz)-0.5)/(float(dz)-3.19)
+                rhoeff.append(RHOeff)
+                
+
+            except IOError:
+                print 'File log.{} does not exist.'.format(f)
+
+
             # density profile
             try:
                 print 'Reading in densprof.{}'.format(f)
-                Z, RHO = read_densprof(DIR,f)
+                Z, RHO, RHOerr = read_densprof(DIR,f)
                 MID, LEFT, RIGHT = mid_point(Z,RHO)
                 # store data for use in diffusion plots
                 RHOdict[dz] = (RHO, LEFT)
+                RHOave = np.mean(RHO[LEFT:RIGHT])
+                rhoave.append(RHOave)
                 Z = Z-Z[MID]
                 Z_left = Z[LEFT]
                 Z_right = Z[RIGHT]
@@ -257,6 +344,7 @@ def main():
 
 
                 ax2.plot(Z, RHO, label=label)
+                ax30.plot(Z, RHO, label=c)
 
                 fig2a.clear()
                 matplotlib.rcParams.update({'font.size': 30})
@@ -264,11 +352,26 @@ def main():
                 ax2a.plot(RHO,Z)
                 #ax2a.plot(RHOfit,Z, linestyle='dashed')
                 ax2a.set_xlabel('$\\rho$ (g/cm$^3$)')
-                ax2a.set_ylabel('$z-z_{\mathrm{mid}}$')
+                ax2a.set_ylabel('$z-z_{\mathrm{mid}}$ (\AA)')
+                #fig2a.text(0.01, 0.54, '$z-z_{\mathrm{mid}}$ (\AA)', ha='center', va='center', rotation=90) #, fontsize=26)
                 ax2a.set_ylim(Z_left-0.5, Z_right+0.5)#limits[dz][0], limits[dz][1])
                 #ax2a.set_ylim(-8, 8)
-                ax2a.set_xlim(0, 7)
-                fig2a.savefig('PLOTS_C/{}/densprof_sideways_{}_{}.pdf'.format(DIR,dz,c),bbox_inches='tight')
+                ax2a.set_xlim(0, 3)
+                fig2a.savefig('PLOTS_C/{}/densprof_sideways_{}_{}.pdf'.format(DIR,dz,c),
+                              bbox_inches='tight',
+                              pad_inches=0.15)
+
+                fig2b.clear()
+                matplotlib.rcParams.update({'font.size': 30})
+                ax2b  = fig2b.add_axes([0.15,0.15,0.75,0.75])
+                ax2b.errorbar(Z,RHO, yerr=RHOerr)
+                #ax2a.plot(RHOfit,Z, linestyle='dashed')
+                ax2b.set_ylabel('$\\rho$ (g/cm$^3$)')
+                ax2b.set_xlabel('$z-z_{\mathrm{mid}}$')
+                ax2b.set_xlim(Z_left-0.5, Z_right+0.5)#limits[dz][0], limits[dz][1])
+                #ax2a.set_ylim(-8, 8)
+                #ax2b.set_xlim(0, 7)
+                fig2b.savefig('PLOTS_C/{}/densprof_err_{}_{}.pdf'.format(DIR,dz,c),bbox_inches='tight')
 
 
             except IOError:
@@ -278,7 +381,11 @@ def main():
             try:
                 if oh_flag == 1:
                     print 'Reading in denso.{}'.format(f)
-                    RHO_O, CY, CZ = read_densprof_2d(DIR,f,'o')
+                    RHO_O, CY, CX = read_densprof_2d(DIR,f,'o')
+
+                    # compute area density
+                    CYmin, CYmax = np.min(CY), np.max(CY)
+                    CXmin, CXmax = np.min(CX), np.max(CX)
 
                     den_max = np.max(RHO_O)
                     den_min = np.min(RHO_O)
@@ -290,13 +397,16 @@ def main():
                     ax8.set_xlabel('$y$ (\AA)')
                     ax8.set_ylabel('$x$ (\AA)')
                     #plt.tick_params(pad=7)
-                    ctest=ax8.contourf(CY, CZ, np.transpose(RHO_O), cmap=cm.RdBu, levels=np.linspace(den_min,den_max,500))
-                    fig8.colorbar(ctest)
-                    fig8.savefig('PLOTS_C/{}/denso_2d_z{}_{}.png'.format(DIR,dz,c),bbox_inches='tight')
+                    ctest=ax8.contourf(CY, CX, np.transpose(RHO_O), cmap=cm.RdBu, levels=np.linspace(den_min,den_max,500))
+                    cbar = fig8.colorbar(ctest)
+                    tick_locator = ticker.MaxNLocator(nbins=5)
+                    cbar.locator = tick_locator
+                    cbar.update_ticks()
+                    fig8.savefig('PLOTS_C/{}/denso_2d_z{}_{}.png'.format(DIR,dz,c),dpi=500,bbox_inches='tight')
                     fig8.clear()
 
                     print 'Reading in densh.{}'.format(f)
-                    RHO_H, CY, CZ = read_densprof_2d(DIR,f,'h')
+                    RHO_H, CY, CX = read_densprof_2d(DIR,f,'h')
 
                     den_max = np.max(RHO_H)
                     den_min = np.min(RHO_H)
@@ -308,8 +418,8 @@ def main():
                     ax8.set_xlabel('$y$ (\AA)')
                     ax8.set_ylabel('$x$ (\AA)')
                     #plt.tick_params(pad=7)
-                    ctest=ax8.contourf(CY, CZ, np.transpose(RHO_H), cmap=cm.RdBu, levels=np.linspace(den_min,den_max,500))
-                    fig8.colorbar(ctest)
+                    ctest=ax8.contourf(CY, CX, np.transpose(RHO_H), cmap=cm.RdBu, levels=np.linspace(den_min,den_max,500))
+                    cbar = fig8.colorbar(ctest)
                     fig8.savefig('PLOTS_C/{}/densh_2d_z{}_{}.png'.format(DIR,dz,c),bbox_inches='tight')
                     fig8.clear()
 
@@ -323,6 +433,9 @@ def main():
                 Z_P, P, Ptot, Pxy, Pxz, Pyz, Pxx, Pyy, Pzz, delz = stress_prof(DIR,f, 'None')
                 MID_P, LEFT_P, RIGHT_P = mid_point(Z_P,P)
                 Z_P = Z_P-Z_P[MID_P]
+                P_T_tot = ((np.mean(Pxx[LEFT_P:RIGHT_P])+
+                    np.mean(Pyy[LEFT_P:RIGHT_P]))/2)
+                PTmax.append((np.max(Pxx)+np.max(Pyy))/(2*1000))
                 label = '$\Delta z = {}$ \AA'.format(dz)
                 #ax4.plot(Z_P, P, label=label)
                 matplotlib.rcParams.update({'font.size': 22})
@@ -392,6 +505,21 @@ def main():
             except IOError:
                 print 'File pmf.{}_1 does not exist.'.format(f)
 
+
+            # Diffusion (MSD)
+            
+            try:
+                
+                diff_bulk = 2.86624087647e-09
+                # diff from msd
+                diff_tot_y_msd_tmp, diff_tot_y_msd_err_tmp, t_msd, msd_ave = diff_msd(DIR,f)
+                diff_tot_y_msd.append(diff_tot_y_msd_tmp*1e9)
+                diff_tot_y_msd_err.append(diff_tot_y_msd_err_tmp*1e9)
+
+
+            except IOError:
+                print 'MSD not working'
+
             # viscosity profile from Diffusion (VACF)
             
             try:
@@ -400,9 +528,9 @@ def main():
                 # wall viscosity
                 print 'Reading in C_vv_y_{}_wall.dat'.format(f)
                 C_vv_array = np.loadtxt("Water_Graphene/{}/C_vv_y_{}_wall.dat".format(DIR,f))
-                times =  C_vv_array[:,0]
-                C_vv_ave = C_vv_array[:,1]
-                diff_wall_tmp = diffusion(C_vv_ave, dt, time_conv, space_conv, 'C_vv_y')
+                times_wall =  C_vv_array[:,0]
+                C_vv_ave_wall = C_vv_array[:,1]
+                diff_wall_tmp = diffusion(C_vv_ave_wall, dt, time_conv, space_conv, 'C_vv_y')
                 eta_diff_wall_tmp = eta_diff(diff_wall_tmp)
                 eta_diff_wall.append(eta_diff_wall_tmp*1e3)
 
@@ -434,9 +562,42 @@ def main():
 
                 print 'The viscosities from diffusion are:', eta_diff_wall_tmp*1e3, eta_diff_tot_tmp*1e3, eta_diff_tot_y_tmp*1e3
 
+                matplotlib.rc('font', size=24)
+                fig25.clear()
+                ax25  = fig25.add_axes([0.15,0.15,0.75,0.75])
+                ax25.plot(times_wall, C_vv_ave_wall/C_vv_ave_wall[0], linestyle='dashed',c=colours[0], label='wall')
+                ax25.plot(times, C_vv_ave/C_vv_ave[0], c=colours[2], label='channel')
+                ax25.set_ylabel('$\Psi_{\mathrm{u,u}}$ (t)', fontsize=28)
+                ax25.set_xlabel('t (ps)', fontsize=28)
+                ax25.set_xlim(0,0.6)
+                ax25.set_ylim(-0.3,1)
+                ax25.legend()
+                fig25.savefig('PLOTS_C/{}/VACF_wall_channel_{}_{}.pdf'.format(DIR,dz,c),bbox_inches='tight')
+                
 
 
+                print dz, len(dZ)
+                if len(dZ) == 2:
+                    if count_tmp == 0:
+                        ccount = 0
+                    else:
+                        ccount = 2*count+4
+                    if dz=='6':
+                        Hlabel = 'liquid'
+                    elif dz=='7.5':
+                        Hlabel='frozen'
+                    else:
+                        Hlabel='H = {} \AA'.format(dz)
+                    ax26.plot(times, C_vv_ave/C_vv_ave[0], linestyle = ls[count_tmp], c=colours[ccount],label=Hlabel)
 
+                    ax26a.plot(times, C_vv_ave/C_vv_ave[0], linestyle = ls[count_tmp], c=colours[ccount],label=Hlabel)
+                    ax26a_i.plot(np.array(t_msd)/1000, msd_ave, linestyle = ls[count_tmp], c=colours[ccount])
+                    ax26a_i.set_xlabel('t (ns)')
+                    ax26a_i.set_ylabel('MSD (\AA$^2$)')
+                else:
+                    ax26.plot(times, C_vv_ave/C_vv_ave[0], label='H = {} \AA'.format(dz))
+                
+                matplotlib.rc('font', size=22)
                 if dz == '30' and rho != 'RHO1':
                     # wall viscosity as fn of z
                     eta_wall_z = []
@@ -455,19 +616,7 @@ def main():
             except IOError:
                 print 'File C_vv_{}.dat or similar does not exist.'.format(f)
 
-            # Diffusion (MSD)
-            
-            try:
-                
-                diff_bulk = 2.86624087647e-09
-                # diff from msd
-                diff_tot_y_msd_tmp, diff_tot_y_msd_err_tmp = diff_msd(DIR,f)
-                diff_tot_y_msd.append(diff_tot_y_msd_tmp*1e9)
-                diff_tot_y_msd_err.append(diff_tot_y_msd_err_tmp*1e9)
 
-
-            except IOError:
-                print 'MSD not working'
 
 
             # viscosity profile from GK
@@ -484,6 +633,9 @@ def main():
                 # parallel shear viscosity (GK)
                 print 'Reading in visc.{}'.format(f)
                 eta_gk_xy_tmp = visc_gk(DIR,f, height, 'etas', 'xy')
+                if rho=='RHO1.1':
+                    print 'Scaling eta'
+                    eta_gk_xy_tmp *= (float(dz)-3.19)/(float(dz)-0.5)
                 eta_xy_gk.append(eta_gk_xy_tmp*1e3)
 
                 # bulk shear viscosity (GK, acf)
@@ -496,7 +648,10 @@ def main():
 
                 # bulk viscosity
                 print 'Reading in visc.{}'.format(f)
-                kappa_gk_tmp = visc_gk(DIR,f, height, 'etab','xy')
+                if rho == 'RHO1':
+                    kappa_gk_tmp = visc_gk(DIR,f, height, 'etab','xy')
+                else:
+                    kappa_gk_tmp = visc_gk(DIR,f, height, 'etab','nvt')
                 kappa_tot_gk.append(kappa_gk_tmp*1e3)
                 kappa_eta_tot.append(kappa_gk_tmp/eta_gk_xy_tmp)
 
@@ -540,6 +695,16 @@ def main():
 
 
 
+            # Calculate the overall system pressure from log file
+            try:
+                thermdata = read_log(DIR,f)
+                Tarr, _p, Pcum, _p1, _dp, _v = props(thermdata)
+                Pave = Pcum[-1]/10 # in MPa
+                Pave_tot.append(Pave)
+            except IOError:
+                print 'File log.{} does not exist.'.format(f)
+
+
 
             # viscosity profile
 
@@ -556,36 +721,43 @@ def main():
 
             #     print 'Viscosities: ', Eta_xy, Eta_yz, Eta_xz
 
-                # normal corrlen is too long. The length we have is only 422 data points
-                '''
-                # Calculate viscosity
-                Pxy_list, Pxz_list, Pyz_list = [], [], []
-                print Pxy.shape
-                for i in range(Pxy.shape[1]):
-                    Pxy_list.append(eta(f,Pxy[:-1,i],delz))
-                    Pxz_list.append(eta(f,Pxz[:-1,i],delz))
-                    Pyz_list.append(eta(f,Pyz[:-1,i],delz))
-                Paniso = np.mean(np.array([Pxy_list, Pxz_list, Pyz_list]), axis=0)
-                #ax6.plot(Z_P, Paniso)
-
-
-                fig6.clear()
-                ax6  = fig6.add_axes([0.15,0.15,0.75,0.75])
+                # # normal corrlen is too long. The length we have is only 422 data points
                 
-                ax6.plot(Z_P, Pxz_list, linestyle='--', marker=markers[1], label='$xz$')
-                ax6.plot(Z_P, Pyz_list, linestyle=':', marker=markers[2], label='$yz$')
-                ax6.plot(Z_P, Pxy_list, linestyle='-', marker=markers[0], label='$xy$')
-                ax6.set_ylabel('$\eta$')
-                ax6.set_xlabel('$z-z_{\mathrm{mid}}$')
-                #ax2.set_xlim(Z_left, Z_right)
-                #ax6.set_xlim(-17.4, 17.4)
-                ax6.legend()
-                #ax4.set_ylim(0, 4)
-                fig6.savefig('PLOTS_C/SV_z{}.pdf'.format(dz))
-                '''
+                # # Calculate viscosity
+                # Pxy_list, Pxz_list, Pyz_list = [], [], []
+                # print Pxy.shape
+                # for i in range(Pxy.shape[1]):
+                #     Pxy_list.append(eta(f,Pxy[:-1,i],delz))
+                #     Pxz_list.append(eta(f,Pxz[:-1,i],delz))
+                #     Pyz_list.append(eta(f,Pyz[:-1,i],delz))
+                # Paniso = np.mean(np.array([Pxy_list, Pxz_list, Pyz_list]), axis=0)
+                # #ax6.plot(Z_P, Paniso)
+
+
+                # fig6.clear()
+                # ax6  = fig6.add_axes([0.15,0.15,0.75,0.75])
+                
+                # ax6.plot(Z_P, Pxz_list, linestyle='--', marker=markers[1], label='$xz$')
+                # ax6.plot(Z_P, Pyz_list, linestyle=':', marker=markers[2], label='$yz$')
+                # ax6.plot(Z_P, Pxy_list, linestyle='-', marker=markers[0], label='$xy$')
+                # ax6.set_ylabel('$\eta$')
+                # ax6.set_xlabel('$z-z_{\mathrm{mid}}$')
+                # #ax2.set_xlim(Z_left, Z_right)
+                # #ax6.set_xlim(-17.4, 17.4)
+                # ax6.legend()
+                # #ax4.set_ylim(0, 4)
+                # fig6.savefig('PLOTS_C/SV_z{}.pdf'.format(dz))
+                
             # except IOError:
             #     print 'File stresseta.{}_1 does not exist.'.format(f)
-
+            count_tmp += 1
+        ax30.set_xlim(Z_left-0.5, Z_right+0.5)
+        ax30.set_ylabel('$\\rho$ (g/cm$^3$)')
+        ax30.set_xlabel('$z-z_{\mathrm{mid}}$')
+        ax30.legend()
+        fig30.savefig('PLOTS_C/{}/dens_z{}.pdf'.format(DIR,dz),bbox_inches='tight')
+        fig30.clear()
+        ax30  = fig30.add_axes([0.15,0.15,0.75,0.75])
 
     # Diffusion related properties
     print '\n#-----------------------Analysing diffusion coefficient------------------\n#'
@@ -667,6 +839,11 @@ def main():
         Z_final, wa, wa_err = averaging(Z_init,wa)
         Z_final, Ls_fric, Ls_fric_err = averaging(Z_init,Ls_fric)
         Z_final, Ls_wa, Ls_wa_err = averaging(Z_init,Ls_wa)
+        Z_final, Pave_tot, Pave_err = averaging(Z_init,Pave_tot)
+        Z_final, PTmax, PTmax_err = averaging(Z_init,PTmax)
+        Z_final, rhoave, rhoave_err = averaging(Z_init,rhoave)
+        Z_final, area_rho, area_rho_err = averaging(Z_init, area_rho)
+        Z_final, rhoeff, rhoeff_err = averaging(Z_init, rhoeff)
 
     else:
         Hlist_err = [0]*len(Hlist)
@@ -682,20 +859,31 @@ def main():
         wa_err = [0]*len(wa)
         Ls_fric_err = [0]*len(Ls_fric)
         Ls_wa_err = [0]*len(Ls_wa)
+        Pave_err = [0]*len(Pave_tot)
+        PTmax_err = [0]*len(PTmax)
+        rhoave_err = [0]*len(rhoave)
+        area_rho_err = [0]*len(area_rho)
         Z_final = Z_init
+        Z_final_vacf = Z_init_vacf
 
     print '\n#-----------------------Average values for fluid wall---------------#'
     print 'The average WA is:', np.mean(wa), '+/-', stats.sem(wa)
     print 'The average Ds is:', np.mean(diff_tot_y_msd), '+/-', stats.sem(diff_tot_y_msd)
-    print 'The average Eta is:', np.mean(eta_xy_gk), '+/-', stats.sem(eta_xy_gk) 
+    print 'The average Eta is:', np.mean(eta_xy_gk), '+/-', stats.sem(eta_xy_gk)
+    print 'The average fric is:', np.mean(fric), '+/-', stats.sem(fric) 
     print 'The average Ls fric is:', np.mean(Ls_fric), '+/-', stats.sem(Ls_fric)
+
+    print Z_final, rhoeff
+    print eta_xy_gk, eta_xy_gk_err
+    print kappa_tot_gk, kappa_tot_gk_err
+    print kappa_eta_tot, kappa_eta_tot_err
 
     # in SI units
     WA_mean = np.mean(wa)*1e-3
     Ds_mean = np.mean(diff_tot_y_msd)*1e-9
     Eta_mean = np.mean(eta_xy_gk)*1e-3
     Ls_fric_mean = np.mean(Ls_fric)
-    
+
     # Aspect ratio array
     LD = np.linspace(0,1000, 100)
     Ls_LD = (Eta_mean*LD)*(Ds_mean/WA_mean)*1e9
@@ -710,17 +898,57 @@ def main():
     enh_LD_1000 = 1+(3/D**2)*(Eta_mean*1000*1e-10)*(Ds_mean/WA_mean)
     enh_LD_10000 = 1+(3/D**2)*(Eta_mean*10000*1e-10)*(Ds_mean/WA_mean)
     scale = WA_mean/(L_tmp*Ds_mean)*1e-12
-    print scale
-    print enh_LD
     enh_LD_scaled = enh_LD*scale
-    print enh_LD_scaled
+
+
+    ###################################
+    Z_pad_min = np.min(Z_final)-0.5
+    Z_pad_max = np.max(Z_final)+0.5
+    Z_final_pad = np.linspace(Z_pad_min, Z_pad_max, 10)
+
 
     # print to csv for latex use
-    with open('DATA/{}/heights_{}.csv'.format(DIR,z_name), 'wb') as csvfile:
+    with open('DATA/{}/heights_{}.csv'.format(DIR, z_name), 'wb') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(("dz", "H"))
-        writer.writerows(imap(lambda x,y: (y, round(x, 2)), Hlist, dZ))#izip(dZ,round(Hlist,2)))
+        writer.writerows(imap(lambda x, y: (y, round(x, 2)), Hlist, dZ))#izip(dZ,round(Hlist,2)))
 
+    # print to csv for latex use
+    with open('DATA/{}/rho_H_{}.csv'.format(DIR, z_name), 'wb') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(("rho", "H"))
+        writer.writerows(imap(lambda x, y: (y, x), Z_final, rhoeff))#izip(dZ,round(Hlist,2)))
+
+
+    with open('DATA/{}/viscosity_{}.csv'.format(DIR, z_name), 'wb') as csvfile:
+        writer = csv.writer(csvfile)
+        if DIR == 'RHO1':
+            writer.writerow(("height", "rhoave", "diff", "shear", "bulk", "ratio"))
+            writer.writerows(imap(
+                             lambda a, b, c, d, e, f, g, h, i, j:
+                             (round(a, 1),
+                              "{}".format(round(j, 3)),
+                              "{} \pm {}".format(round(b, 3), round(c, 3)),
+                              "{} \pm {}".format(round(d, 2), round(e, 2)),
+                              "{} \pm {}".format(round(f, 2), round(g, 2)),
+                              "{} \pm {}".format(round(h, 1), round(i, 1))),
+                             Z_final, diff_tot_y_msd, diff_tot_y_msd_err,
+                             eta_xy_gk, eta_xy_gk_err,
+                             kappa_tot_gk, kappa_tot_gk_err,
+                             kappa_eta_tot, kappa_eta_tot_err,
+                             rhoeff))
+        elif DIR == 'RHO1.1':
+
+            writer.writerow(("height", "rhoave", "diff", "shear"))
+            writer.writerows(imap(
+                             lambda a, b, c, d, e, f:
+                             (round(a, 1),
+                              "{}".format(round(f, 3)),
+                              "{:6f} \pm {:6f}".format(round(b, 6), round(c, 6)),
+                              "{} \pm {}".format(round(d, 2), round(e, 2))),
+                             Z_final, diff_tot_y_msd, diff_tot_y_msd_err,
+                             eta_xy_gk, eta_xy_gk_err,
+                             rhoeff))
 
     print '\n#-----------------------Final plotting------------------\n#'
 
@@ -744,7 +972,7 @@ def main():
     #    ax3.plot(Hfit, diff_fit, c=colours[0], linestyle='dashed', marker='None')
     #    Hfit, rho_fit = exp_fit(Hlist, rho_list, 1, 40)
     #    ax3b.plot(Hfit, rho_fit, c=colours[6], linestyle='dashed', marker='None')
-    ax3.errorbar(Z_final, d_list, yerr=d_list_err, c=colours[0], linestyle='dashed', marker='D')
+    #ax3.errorbar(Z_final, d_list, yerr=d_list_err, c=colours[0], linestyle='dashed', marker='D')
     ax3.set_ylabel('$D_{||}/D_{\mathrm{iso}}$')
     #ax3.set_ylim(0,1.3)
     ax3.yaxis.label.set_color(colours[0])
@@ -788,8 +1016,8 @@ def main():
     # ETA
 
     # fit curve for squeeze film equation
-    eta_squeeze = squeeze_visc(Z_final, k0)
-    eta_squeeze_fit = squeeze_visc(Z_final, 1.7)
+    #eta_squeeze = squeeze_visc(Z_final, k0)
+    #eta_squeeze_fit = squeeze_visc(Z_final, 1.7)
 
     ax9.errorbar(Z_final_vacf, eta_diff_wall, yerr=eta_diff_wall_err, marker='o')
     ax9.plot(Z_final_vacf, len(Z_final_vacf)*[0.67], linestyle='dashed', label='Bulk')
@@ -859,13 +1087,15 @@ def main():
     ax13.set_ylim(0,5)
     ax13.legend()
 
+    ax14.set_yscale('log')
     ax14.errorbar(Z_final, kappa_tot_gk, yerr=kappa_tot_gk_err, marker='o')
     ax14.plot(Z_final, len(Z_final)*[1.59], linestyle='dashed', label='Bulk')
     ax14.set_xlabel('H (\AA)')
-    ax14.set_ylabel('$\kappa_{\mathrm{GK}}$ (mPas)')
+    ax14.set_ylabel('$\kappa$ (mPas)')
 
     ax15.errorbar(Z_final, kappa_eta_tot, yerr=kappa_eta_tot_err, marker='o')
-    ax15.plot(Z_final, len(Z_final)*[2.32], linestyle='dashed', label='Bulk')
+    ax15.plot(Z_final_pad, len(Z_final_pad)*[2.32], linestyle='dashed', label='Bulk')
+    ax15.set_xlim(Z_pad_min, Z_pad_max)
     ax15.set_xlabel('H (\AA)')
     ax15.set_ylabel('$\kappa/\eta$ ')
 
@@ -908,6 +1138,21 @@ def main():
     ax18.set_xlabel('H (\AA)')
     ax18.set_ylabel('$\zeta$ ($10^4$ Ns/m$^3$)')
     ax18.legend()
+
+    ax18b = ax18a.twinx()
+    ax18a.set_xlabel('H (\AA)')
+    ax18a.set_ylabel('$L_{s,\zeta}$ (nm)') 
+    ax18a.yaxis.label.set_color(colours[0])
+    for tl in ax18a.get_yticklabels():   
+        tl.set_color(colours[0])
+    fig18a.text(0.96, 0.5, '$\zeta$ ($10^4$ Ns/m$^3$)', color=colours[6], ha='center', va='center', fontsize=22,rotation=270)
+    for tl in ax18b.get_yticklabels():   
+        tl.set_color(colours[6])
+    ax18b.errorbar(Z_final, fric, yerr=fric_err, marker='o', c=colours[6],linestyle='dashed',zorder=0)
+    ax18a.errorbar(Z_final, Ls_fric, yerr=Ls_fric_err, marker='D', c=colours[0],linestyle='dashed',zorder=1)
+    ax18a.set_zorder(ax18b.get_zorder()+1) # put ax in front of ax2 
+    ax18a.patch.set_visible(False) # hide the 'canvas' 
+    #ax18a.legend()
 
     ax19.errorbar(Z_final, wa, yerr=wa_err, marker='o', linestyle='dashed')
     ax19.set_xlabel('H (\AA)')
@@ -961,8 +1206,99 @@ def main():
     ax22b.set_xlim(0,40)
     ax22b.legend()
 
-    
+    ax23a = fig23.add_subplot(211)
+    ax23a.set_yscale('log')
+    ax23a.errorbar(Z_final, diff_tot_y_msd, yerr=diff_tot_y_msd_err, marker='o')
+    ax23a.plot(Z_final_pad, len(Z_final_pad)*[2.866], linestyle='dashed')
+    #ax23a.axes.get_xaxis().set_ticks([])
+    ax23a.tick_params(labelbottom='off')   
+    ax23a.set_ylabel('$D_s$ (10$^{-9}$ m$^2$/s)')
+    ax23a.set_xlim(Z_pad_min, Z_pad_max)
+    ax23a.legend()
 
+    ax23b = fig23.add_subplot(212)
+    ax23b.set_yscale('log')
+    ax23b.errorbar(Z_final, eta_xy_gk, yerr=eta_xy_gk_err, marker='o')
+    ax23b.plot(Z_final_pad, len(Z_final_pad)*[0.67], linestyle='dashed')
+    ax23b.set_xlabel('H (\AA)')
+    ax23b.set_ylabel('$\eta$ (mPas)', labelpad=20)
+    ax23b.set_xlim(Z_pad_min, Z_pad_max)
+    ax23b.legend()
+
+    ax24a = fig24.add_subplot(311)
+    ax24a.set_yscale('log')
+    ax24a.errorbar(Z_final, diff_tot_y_msd, yerr=diff_tot_y_msd_err, marker='o')
+    ax24a.plot(Z_final_pad, len(Z_final_pad)*[2.866], linestyle='dashed')
+    #ax23a.axes.get_xaxis().set_ticks([])
+    ax24a.tick_params(labelbottom='off')   
+    ax24a.set_ylabel('$D_s$ (10$^{-9}$ m$^2$/s)')
+    ax24a.set_xlim(Z_pad_min, Z_pad_max)
+    ax24a.legend()
+
+    ax24b = fig24.add_subplot(312)
+    ax24b.set_yscale('log')
+    ax24b.errorbar(Z_final, eta_xy_gk, yerr=eta_xy_gk_err, marker='o')
+    ax24b.plot(Z_final_pad, len(Z_final_pad)*[0.67], linestyle='dashed')
+    ax24b.set_ylabel('$\eta$ (mPas)', labelpad=20)
+    ax24b.tick_params(labelbottom='off')   
+    ax24b.set_xlim(Z_pad_min, Z_pad_max)
+    ax24b.legend()
+
+    ax24c = fig24.add_subplot(313)
+    ax24c.set_yscale('log')
+    ax24c.errorbar(Z_final, kappa_tot_gk, yerr=kappa_tot_gk_err, marker='o')
+    ax24c.plot(Z_final_pad, len(Z_final_pad)*[1.59], linestyle='dashed')
+    ax24c.set_xlabel('H (\AA)')
+    ax24c.set_ylabel('$\kappa$ (mPas)', labelpad=20)
+    ax24c.set_xlim(Z_pad_min, Z_pad_max)
+    ax24c.legend()
+
+    matplotlib.rc('font', size=28)
+    ax26.set_xlabel('t (ps)', fontsize=28)
+    ax26.set_ylabel('$\Psi_{\mathrm{u,u}}$ (t)', fontsize=28 )
+    ax26.set_xlim(0,0.6)
+    ax26.set_ylim(-0.3,1)
+    ax26.legend()
+
+    matplotlib.rc('font', size=24)
+    ax26a.set_xlabel('t (ps)', fontsize=28)
+    ax26a.set_ylabel('$C_{\mathrm{u,u}}$ (t)', fontsize=28 )
+    ax26a.set_xlim(0,0.6)
+    ax26a.set_ylim(-0.3,1)
+    ax26a.legend()
+
+    ax27.errorbar(Z_final, Pave_tot, yerr=Pave_err, marker='o')
+    ax27.set_xlabel('H (\AA)')
+    ax27.set_ylabel('P (MPa)')
+    ax27.set_xlim(Z_pad_min, Z_pad_max)
+    ax27.legend()
+
+    ax27a.errorbar(Z_final, PTmax, yerr=PTmax_err, marker='o')
+    ax27a.set_xlabel('H (\AA)')
+    ax27a.set_ylabel('$P_{\mathrm{T, max}}$ (GPa)')
+    ax27a.set_xlim(Z_pad_min, Z_pad_max)
+    ax27a.legend()
+
+    ax28.errorbar(Z_final, rhoave, yerr=rhoave_err, marker='o')
+    ax28.set_xlabel('H (\AA)')
+    ax28.set_ylabel('$\\rho$ (g/cm$^3$)')
+    ax28.set_xlim(Z_pad_min, Z_pad_max)
+    ax28.legend()
+
+    ax29.set_yscale('log')
+    ax29.errorbar(Pave_tot, kappa_tot_gk, yerr=kappa_tot_gk_err, xerr=Pave_err, marker='o', linestyle='None')
+    ax29.set_ylabel('$\kappa$ (mPas)')
+    ax29.set_xlabel('P (MPa)')
+    #ax29.set_xlim(Z_pad_min, Z_pad_max)
+    ax29.legend()
+
+    ax31.errorbar(Z_final, area_rho, yerr=area_rho_err, marker='o')
+    ax31.set_xlabel('H (\AA)')
+    ax31.set_ylabel('$\\rho_{\mathrm{area}}$ (nm$^{-2}$)')
+    ax31.set_xlim(Z_pad_min, Z_pad_max)
+    ax31.legend()
+    
+    fig1.savefig('PLOTS_C/{}/diffusion_{}{}.pdf'.format(DIR,pre_name, z_name))
     fig2.savefig('PLOTS_C/{}/densprof_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     fig4.savefig('PLOTS_C/{}/stressprof_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     fig3.savefig('PLOTS_C/{}/diffdens_wall_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
@@ -979,8 +1315,8 @@ def main():
     fig16a.savefig('PLOTS_C/{}/diff_msd_vacf_log_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     fig17.savefig('PLOTS_C/{}/height_layer_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     fig17a.savefig('PLOTS_C/{}/height_layer2_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
-    fig1.savefig('PLOTS_C/{}/diffusion_{}{}.pdf'.format(DIR,pre_name, z_name))
     fig18.savefig('PLOTS_C/{}/fric_gk_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig18a.savefig('PLOTS_C/{}/fric_comb_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     fig19.savefig('PLOTS_C/{}/wa_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     fig19a.savefig('PLOTS_C/{}/WADseta_ave_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     fig20.savefig('PLOTS_C/{}/Ls_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
@@ -988,8 +1324,17 @@ def main():
     fig22.savefig('PLOTS_C/{}/enh_fixedL{}_{}.pdf'.format(DIR,L_tmp*1e10,z_name),bbox_inches='tight')
     fig22a.savefig('PLOTS_C/{}/enh_fixedL_scaled_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     fig22b.savefig('PLOTS_C/{}/enh_DsWA_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
-    
+    fig23.savefig('PLOTS_C/{}/eta_diff_log_sub_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig24.savefig('PLOTS_C/{}/eta_diff_kappa_log_sub_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig26.savefig('PLOTS_C/{}/VACF_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig26a.savefig('PLOTS_C/{}/VACF_MSD_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig27.savefig('PLOTS_C/{}/Pave_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig27a.savefig('PLOTS_C/{}/PTmax_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig28.savefig('PLOTS_C/{}/rhoave_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig29.savefig('PLOTS_C/{}/Pave_vs_kappa_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    fig31.savefig('PLOTS_C/{}/area_dens_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
     print '\n#-----------------------Done------------------\n#'
+
     return
 
 if __name__ == "__main__":

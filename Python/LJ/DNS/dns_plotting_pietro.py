@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import ast
+import sys
 from matplotlib import cm
 import pylab as p
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
@@ -16,7 +17,8 @@ from mpl_toolkits.mplot3d import axes3d
 import argparse
 import re
 from matplotlib import rc
-
+sys.path.insert(0,'/home/fred/SCRIPTS/Python')
+from plotting_params import *
 
 
 
@@ -139,14 +141,14 @@ def integrate(xval, rho, u):
 	N = 2*nptsY-1
 	h = domainLength/N	
 	rhoval = np.array(rho)[xval,:]
-	rhoval = np.concatenate((rhoval, rhoval[::-1]),axis=1)
-    	u = np.array(u)[xval,:]
-    	u = np.concatenate((u, u[::-1]),axis=1)
+	rhoval = np.concatenate((rhoval, rhoval[::-1]))#,axis=1)
+	u = np.array(u)[xval,:]
+	u = np.concatenate((u, u[::-1]))#,axis=1)
 	sum_rhou = 0
 	for i in range(1, int(N/2)):
 		sum_rhou += rhoval[2*i-2]*u[2*i-2]
-        	sum_rhou += 4*rhoval[2*i-1]*u[2*i-1]
-        	sum_rhou += rhoval[2*i]*u[2*i]
+    	sum_rhou += 4*rhoval[2*i-1]*u[2*i-1]
+    	sum_rhou += rhoval[2*i]*u[2*i]
 	final = (h/3)*sum_rhou
 	return final
 
@@ -156,8 +158,8 @@ print 'L', domainLength, 'H', domainHeight
 
 #----------------------------------------------#
 
-matplotlib.rcParams.update({'font.size': 19})
-rc('text', usetex=True)
+#matplotlib.rcParams.update({'font.size': 19})
+#rc('text', usetex=True)
 
 
 if plotting == 'y':
@@ -207,16 +209,24 @@ if plotting == 'y':
 	plt.show()
 
 
-#	# u selection
-#	fig = plt.figure()
-#	ax = fig.gca(projection='3d')
-#	for i in np.arange(0,nptsX,10):
-#		yplot = np.empty(len(Hvals))
+	# u selection
+	fig = plt.figure()
+	ax = fig.gca(projection='3d')
+	for i in np.arange(0,nptsX,20):
+		yplot = np.empty(len(Hvals))
 
-#		yplot.fill(Lvals[i])
-#		ax.plot(Hvals, yplot, zs=np.array(uvals)[i,:])
-#	plt.savefig('{}/{}/uvals_sel_{}_{}_{}.png'.format(folder,ftype,nptsX,nptsY,ftype))	
-#	plt.show()
+		yplot.fill(Lvals[i])
+		ax.plot(Hvals, yplot, zs=np.array(uvals)[i,:])
+	ax.axes.xaxis.set_ticklabels([])
+	ax.axes.yaxis.set_ticklabels([])
+	ax.axes.zaxis.set_ticklabels([])
+	#ax.tick_params(axis='z', which='major', pad=12)
+	ax.xaxis.set_pane_color((1,1,1, 0.1))
+	#ax.set_xlabel('z')
+	#ax.set_ylabel('x')
+	#ax.set_zlabel('$u_x$')
+	plt.savefig('{}/{}/uvals_sel_{}_{}_{}.pdf'.format(folder,ftype,nptsX,nptsY,ftype),bbox_inches='tight')	
+	plt.show()
 
 #	# rho selection
 #	fig = plt.figure()

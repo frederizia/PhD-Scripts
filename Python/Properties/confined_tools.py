@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Quick diffusion coefficient calculation given VACF
+# Tools to analyse confined water data
 
 import argparse
 import matplotlib.pyplot as plt
@@ -113,9 +113,10 @@ def read_densprof(Dir,f):
 
 
     zcoord = np.array(zcoord[0])
+    dens_err = stats.sem(dens, axis = 0)
     dens   = np.mean(np.array(dens), axis=0)
 
-    return zcoord, dens
+    return zcoord, dens, dens_err
 
 def read_densprof_2d(Dir,f,atom):
 
@@ -188,6 +189,17 @@ def read_densprof_2d(Dir,f,atom):
 
     return density, coords_y, coords_z
 
+
+def avg_density(fluid, f, r):
+    filename = ('/media/fred/8TB/Bulk_properties/{}/{}/dens.{}'
+                .format(fluid, r, f))
+    f = open(filename, 'r')
+    _, __, data = (f.readline(), f.readline(), f.readline())
+
+    RHOeff = float(data.split()[1])
+    return RHOeff
+
+
 def coords(Dir,f):
     filename = 'Water_Graphene/{}/log.{}'.format(Dir,f)
     f = open(filename,'r')
@@ -200,6 +212,7 @@ def coords(Dir,f):
     xhi, yhi, zhi = coord_line[1].strip(' ').split(' ')
 
     return float(xlo), float(xhi), float(ylo), float(yhi), float(zlo), float(zhi)
+
 
 def geometry(Dir,f):
     xlo, xhi, ylo, yhi, zlo, zhi = coords(Dir,f)
@@ -260,12 +273,12 @@ def stress_prof(Dir,f,xtra='None'):
             xy = float(items[6])*Ncount/vol
             xz = float(items[7])*Ncount/vol
             yz = float(items[8])*Ncount/vol  
-            Pxx = -xx
-            Pyy = -yy
-            Pzz = -zz
-            Pxy = -xy
-            Pxz = -xz
-            Pyz = -yz
+            Pxx = -xx*0.1
+            Pyy = -yy*0.1
+            Pzz = -zz*0.1
+            Pxy = -xy*0.1
+            Pxz = -xz*0.1
+            Pyz = -yz*0.1
             pres = (Pxx+Pyy+Pzz)*0.1/3 # in MPa
 
             coords.append(Coord)
@@ -568,6 +581,9 @@ def diff_msd(Dir,file):
     MSDx = df['c_rmsd[1]'].tolist()
     MSDy = df['c_rmsd[2]'].tolist()
     MSDz = df['c_rmsd[3]'].tolist()
+
+    MSDave = (np.array(MSDx)+np.array(MSDy))/2
+    MSDave_norm = MSDave - MSDave[0]
     T = df['TimeStep']*dt
     dT = np.max(T)-np.min(T)
 
@@ -605,7 +621,7 @@ def diff_msd(Dir,file):
     fig1.savefig('PLOTS_C/{}/MSD_{}.pdf'.format(Dir,file),bbox_inches='tight')
     fig1.clear()
 
-    return diff_ave, diff_ave_err
+    return diff_ave, diff_ave_err, T, MSDave_norm
 
 def straight_fit(x, y, xmin, xmax):
     params , cov = curve_fit(f1, np.array(x), np.array(y), bounds=(0, np.inf))

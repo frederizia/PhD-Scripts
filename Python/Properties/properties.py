@@ -117,7 +117,8 @@ def main():
     fig_size = (9,7)
 
     colours=['#313695', '#4575b4', '#74add1',\
-    '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026','#4575b4', '#74add1',\
+    '#abd9e9', '#fdae61', '#f46d43', '#d73027','#a50026',\
+    '#313695','#4575b4', '#74add1',\
     '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026']
 
 
@@ -164,7 +165,7 @@ def main():
             saft_term = 'three-bead'
         else:
             saft_term = ''
-        markers = ['D', 's', 'v', '^', 'd', '*']
+        markers = ['D', 'd', 'v', '^', 's', '*','d', 'v']
         legend_names = {'spce':'SPC/E', 'tip4p':'TIP4P/2005', 'TraPPE': 'TraPPE', 'SAFT': 'SAFT %s'%saft_term, \
         'SAFT1': 'SAFT monomer', 'TraPPEnc': 'TraPPE (no charges)', 'OPLS': 'OPLS',\
         'SAFT1_rc2.5': 'SAFT (rc=2.5)', '12_6':'12-6 model', '12_6_rcsaft': '12-6 model (rc from SAFT)',\
@@ -350,15 +351,30 @@ def main():
             if m=='SAFT1' and fluid=='Water':
                 if temp=='300':
                     label_tmp = 'SAFT CGW1-ift'
+                    modnum = 6
                 else:
                     label_tmp = 'SAFT CGW1-vle'
+                    modnum = 7
             elif m=='SAFT1vle':
                 label_tmp = 'SAFT CGW1-vle'
+                modnum = 7
             elif m=='SAFT1ift':
                 label_tmp = 'SAFT CGW1-ift'
+                modnum = 6
+            elif m=='spce':
+                label_tmp = legend_names[m]
+                modnum = 0
+            elif m=='tip4p':
+                label_tmp = legend_names[m]
+                modnum = 4
             else:
                 label_tmp = legend_names[m]
-            ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(label_tmp))
+                modnum = 1
+
+            if fluid=='Water':
+                ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[modnum], c=colours[modnum], label='%s'%(label_tmp))
+            else:
+                ax1.errorbar(press_dat, rho_dat, xerr=press_err, linestyle = 'None', marker=markers[count], c=colours[2*count], label='%s'%(label_tmp))
             ax1.set_xlabel('P (bar)')
             ax1.set_ylabel('$\\rho$ (g/cm$^3$)')
             ax1.legend()

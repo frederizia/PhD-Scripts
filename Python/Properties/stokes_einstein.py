@@ -73,7 +73,7 @@ def main():
     opt = args.opt
 
     rho = 'RHO1'
-    avg = 0
+    avg = 1
 
 
     if units == 'metal':
@@ -361,7 +361,14 @@ def main():
 
 
     # average
+    print Z_init, shear_diff_confined
     Z_confined, shear_diff_confined, shear_diff_err = averaging(Z_init, shear_diff_confined)
+
+    print Z_confined
+    print shear_diff_confined
+    print diff_confined
+    print shear_gk_confined
+
     shear_diff_conf_avg = np.mean(shear_diff_confined[np.where(Z_confined>=9)])
     shear_diff_conf_err = stats.sem(shear_diff_confined[np.where(Z_confined>=9)])
     shear_diff_dev = abs(shear_diff_confined-shear_diff_conf_avg)
@@ -386,6 +393,9 @@ def main():
     xfit_se, shear_fit_se = 1e-9*np.array(xfit_se), 1e3*np.array(shear_fit_se)
     print 'The effective diameters are:', alpha_se, '+/-',alpha_se_err, 'A (Diff) and', alpha_gk, '+/-',alpha_gk_err, 'A (GK)'
 
+
+
+
     print '\n#-----------------------Final plotting------------------\n#'
 
     # eta x D product
@@ -402,14 +412,14 @@ def main():
     #adjust the color of c[0], which is a LineCollection, to the colormap
     c[0].set_color(err_color)
 
-    ax1.set_xlabel('$\Delta z$ (\AA)')
+    ax1.set_xlabel('H (\AA)')
     ax1.set_xlim(np.min(Z_confined)-1,np.max(Z_confined)+1)
     ax1.set_ylabel('$\eta\\times D_s$ ($10^6$ m$^2$Pa)')
 
     #ax13.plot(Hlist, eta_tot_gk, marker='o', label='$\eta_{\mathrm{eff}}$')
     #ax13.plot(1/np.array(diff_final), shear_se_final, ls='None', marker='s', c=colours[0], label='Stokes-Einstein')
     ax13.plot(1/np.array(diff_final), shear_gk_final, ls='None', marker='o', c=colours[0], label='Green-Kubo')
-    ax13.plot(xfit_gk, shear_fit_gk, linestyle='dashed',c=colours[0],label='fit')
+    ax13.plot(xfit_gk, shear_fit_gk, linestyle='dashed',c=colours[0],label='$\\alpha = %.1f$ \AA' % alpha_gk)
     ax13.plot(xfit_se, shear_fit_se, linestyle='dotted',c=colours[7], label='$\\alpha = 1.7$ \AA')
     ax13.set_xlabel('$1/D_s$ ($10^{9}$s/m$^2$)')
     ax13.set_ylabel('$\eta$ (mPas)')

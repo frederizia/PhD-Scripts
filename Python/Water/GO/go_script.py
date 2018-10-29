@@ -50,11 +50,12 @@ def main():
     colours=['#313695', '#4575b4', '#74add1',\
     '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026']
 
-    offset_label = {('1','0.0'):'Single sheet', ('2','0.0'):'$c=0.0$', ('2','0.25'):'$c=0.25$',('2','0.5'):'$c=0.5$',
-    ('3','0.0'):'n=3, c=0.0',('4','0.0'):'n=4, c=0.0',('5','0.0'):'n=5, c=0.0',('6','0.0'):'n=6, c=0.0',\
-    ('3','0.5'):'n=3, c=0.5',('4','0.5'):'n=4, c=0.5',('5','0.5'):'n=5, c=0.5',('6','0.5'):'n=6, c=0.5'}
+    offset_label = {('1','0.0'):'Single sheet', ('2','0.0'):'$o=0.0$', ('2','0.25'):'$o=0.25$',('2','0.5'):'$o=0.5$',
+    ('3','0.0'):'n=3, o=0.0',('4','0.0'):'n=4, o=0.0',('5','0.0'):'n=5, o=0.0',('6','0.0'):'n=6, o=0.0',\
+    ('3','0.5'):'n=3, o=0.5',('4','0.5'):'n=4, o=0.5',('5','0.5'):'n=5, o=0.5',('6','0.5'):'n=6, o=0.5'}
 
-    WIDTH = {('CH','5'):3.29, ('CH','6'): 4, ('CH','7'): 4.83, ('CH','9'):6.64, ('CH','11'):8.43,\
+    WIDTH = {('CH','5'):3.29, ('CH','6'): 4, ('CH','6_n35'): 4,('CH','6_n55'): 4,('CH','6_n65'): 4, \
+    ('CH','6_n46'): 4,('CH','6_n47'): 4,('CH','7'): 4.83, ('CH','8'): 5.5, ('CH','9'):6.64, ('CH','11'):8.43,\
     ('CH','13'):10.35, ('CH', '15'):12.26,\
     ('COH','5'):3.04, ('COH','7'):4.49, ('COH','9'):6.25, ('COH','11'):8.08, \
     ('CCOO','5'):1.74, ('CCOO','7'):3.14, ('CCOO','9'):4.63, ('CCOO','11'):6.40, \
@@ -140,9 +141,9 @@ def main():
                                 rho_mean.append(RHOmean)
 
 
-                                ax1.plot(C,P, label='$A={}$'.format(f))
-                                ax2.plot(CZ,RHOZ, label='A={}'.format(f))
-                                ax3.plot(CX,RHOX, label='A={}'.format(f))
+                                ax1.plot(C,P, label='$\mathrm{A}_{\mathrm{F}}=%s$'%(f))
+                                ax2.plot(CZ,RHOZ, label='$\mathrm{A}_{\mathrm{F}}=%s$'%(f))
+                                ax3.plot(CX,RHOX, label='$\mathrm{A}_{\mathrm{F}}=%s$'%(f))
                                 #ax5.plot(CX,VELX, label='F={}'.format(f))
                             except:
                                 print '\nThere was an error. Maybe no file for n={}, delx={}, o={} and F={} exists.\n'.format(n,dx,o,f)
@@ -196,19 +197,19 @@ def main():
                         ax4.legend()
 
                         ax5.set_xlabel('$\Delta$P (MPa)')
-                        ax5.set_ylabel('$J_z$ (10$^3$ mol/m$^2$s)')
+                        ax5.set_ylabel('$J_{z,\mathrm{mol}}$ (10$^3$ mol/m$^2$s)')
                         #ax5.set_ylim(0,vel_max)
                         ax5.set_xlim(0, 150)
                         ax5.legend()
 
                         ax6.set_xlabel('$\Delta$P (MPa)')
-                        ax6.set_ylabel('$J_z$ (10$^3$ mol/m$^2$s)')
+                        ax6.set_ylabel('$J_{z,\mathrm{mol}}$ (10$^3$ mol/m$^2$s)')
                         ax6.set_ylim(0, 150)
                         ax6.set_xlim(0, 230)
                         ax6.legend()
 
                         ax8.set_xlabel('$\Delta$P (MPa)')
-                        ax8.set_ylabel('$J_z$ (10$^3$ mol/m$^2$s)')
+                        ax8.set_ylabel('$J_{z,\mathrm{mol}}$ (10$^3$ mol/m$^2$s)')
                         ax8.set_ylim(0,30)
                         ax8.set_xlim(0, 230)
                         ax8.legend()
@@ -228,19 +229,23 @@ def main():
         
         if len(sheets) == 1 and len(delx) >1:
             delx_int = map(int,delx)
-            perm_dx_fit = exp_fit(delx_int, perm, 0, 15.5)
+            #perm_dx_fit = exp_fit(delx_int, perm, 0, 15.5)
+            perm_dx_fit = poly_fit(delx_int, perm, 0, 16)
+            #perm_59_fit = straight_fit2(delx_int[:5], perm[:5], 0,16)
+            perm_59_fit = poly_fit(delx_int[:5], perm[:5], 0,16)
             A_lower = 0.0610023944183
             B_lower = 0.42515763262
             A_higher = 1.66724563937
             B_higher =  0.13260576073
             #print 'k fit parameters for delx dependence: A=', perm_dx_fit[2][0],', B=', perm_dx_fit[2][1] 
             ax7.errorbar(delx_int, perm, yerr=perm_err, marker='o', markersize=11, linestyle='None', c=colours[0])
-            ax7.plot(perm_dx_fit[0], perm_dx_fit[1], linestyle='dashed', c=colours[0], label='Exponential fit')
-            ax7.plot(perm_dx_fit[0], f3(perm_dx_fit[0], A_lower, B_lower), linestyle='dotted', c=colours[1], label='Fit (5-9 \AA)')
+            ax7.plot(perm_dx_fit[0], perm_dx_fit[1], linestyle='dashed', c=colours[0], label='Fit')
+            #ax7.plot(perm_59_fit[0], perm_59_fit[1], linestyle='dotted', c=colours[1], label='Fit (5-9 \AA)')
+            #ax7.plot(perm_dx_fit[0], f3(perm_dx_fit[0], A_lower, B_lower), linestyle='dotted', c=colours[1], label='Fit (5-9 \AA)')
             #ax7.plot(perm_dx_fit[0], f3(perm_dx_fit[0], A_higher, B_higher), linestyle='dotted', c=colours[2], label='Fit (11-15 \AA)')
             ax7.set_xlabel('$d_{\mathrm{slit}}$ (\AA)')
-            ax7.set_ylabel('$k$ (10$^{-17}$ m$^2$s$^{-1}$Pa$^{-1}$)')
-            ax7.set_ylim(-2,12)
+            ax7.set_ylabel('$k_z$ (10$^{-17}$ m$^2$s$^{-1}$Pa$^{-1}$)')
+            ax7.set_ylim(0,12)
             ax7.set_xlim(0,16)
             ax7.legend(loc='upper left')
 
@@ -249,7 +254,7 @@ def main():
                 ax10.errorbar(d_eff, perm, yerr=perm_err, marker='o', markersize=11, linestyle='None', c=colours[count_fn*2], label=LABEL[fn])
                 ax10.plot(perm_deff_fit[0], perm_deff_fit[1], linestyle='dashed',c=colours[count_fn*2])
                 ax10.set_xlabel('$d_{\mathrm{eff}}$ (\AA)')
-                ax10.set_ylabel('$k$ (10$^{-17}$ m$^2$s$^{-1}$Pa$^{-1}$)')
+                ax10.set_ylabel('$k_z$ (10$^{-17}$ m$^2$s$^{-1}$Pa$^{-1}$)')
                 ax10.set_ylim(0,7)
                 ax10.set_xlim(0,9)
                 ax10.legend(loc='upper left')
@@ -273,7 +278,7 @@ def main():
             ax9.errorbar(sheets_int, perm_sheets, yerr=perm_sheets_err, marker='o', linestyle='None')
             ax9.plot(perm_sheets_fit[0], perm_sheets_fit[1], linestyle='dashed', c=colours[0])
             ax9.set_xlabel('no. of sheets')
-            ax9.set_ylabel('$k$ (10$^{-17}$ m$^2$s$^{-1}$Pa$^{-1}$)')
+            ax9.set_ylabel('$k_z$ (10$^{-17}$ m$^2$s$^{-1}$Pa$^{-1}$)')
             fig9.savefig('PLOTS/{}/perm_{}.{}'.format(EXT, name_sheets, ext))
 
 

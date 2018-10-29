@@ -18,6 +18,8 @@ def GetArgs():
                         help='metal or real')
     parser.add_argument('-s', '--start', nargs='+',required=False, default='None', action='store',
                        help='Starting configurations')
+    parser.add_argument('-r', '--density', nargs='+',required=False, default=None, action='store',
+                       help='Density for constant channel')
 
     args = parser.parse_args()
     return args
@@ -62,9 +64,96 @@ def apply_pbc(arr):
 
     return arr
 
+def cut_and_shift(arr):
+
+    arr = arr[np.all(arr[:,:2]>-32,axis=1) & np.all(arr[:,:2]<64,axis=1)]
+    arr[:,0] += 32
+    arr[:,1] += 32
+    
+
+    return arr
 
 
+def rdf_calc(DIR, dt, z_name):
 
+
+    #------------------------Code---------------------------#
+    orderArr  = []
+    fig_size_sq   = (9,7)
+    
+
+    # Loop over different times
+
+    filename = 'Water_Graphene/{}/xyz.{}.xyz'.format(DIR,z_name)
+
+    steps = 0
+    positions = []
+    rdf_tot = []
+    with open(filename) as infile:
+        for line in infile:
+            l = line.split()
+            if len(l) == 1:
+                if steps != 0 and positions != []:
+                    
+                    positions = np.array(positions)
+                    positions = apply_pbc(positions)
+                    positions = cut_and_shift(positions)
+                    xpos = positions[:,0]
+                    ypos = positions[:,1]
+                    zpos = positions[:,2]
+
+                    extent = 96
+                    rMax = 20
+                    dr = 0.1
+                    rdf = pairCorrelationFunction_2D(xpos, ypos, extent, rMax, dr)
+                    print rdf[0]
+                    print 'Number of reference atoms:', len(rdf[2])
+                    rdf_tot.append(rdf[0])
+                    # Plot RDF
+                    #fig1 = plt.figure(figsize=fig_size_sq)
+                    #ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
+                    
+                    #ax1.plot(rdf[1], rdf[0])
+                    #ax1.set_xlabel('r (\AA)')
+                    #ax1.set_ylabel('g(r)')
+                    #ax1.set_ylim( (0, 1) ) 
+                    #ax1.legend()
+
+                    #plt.show()
+                steps += 1
+                no_atoms = int(l[0])
+                positions = []
+            elif len(l) == 3:
+                time = int(l[2])*dt
+                print '\nAt step {} the time is {} ps.'.format(steps,time)
+
+            elif len(l) == 4 and l[0]=='O':
+                x_val = float(l[1])
+                y_val = float(l[2])
+                z_val = float(l[3])
+
+                positions.append([x_val,y_val,z_val])
+
+
+    rdf_mean = np.mean(np.array(rdf_tot), axis=0)
+    rdf_xval = rdf[1]
+
+    # save rdf to file
+    write_values = np.array([rdf_xval, rdf_mean]).T
+    np.savetxt('DATA/{}/rdf_2d_{}.dat'.format(DIR,z_name), write_values, fmt='%.6f, %.6f', header='r, rdf')
+
+    fig1 = plt.figure(figsize=fig_size_sq)
+    ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
+    
+    ax1.plot(rdf_xval, rdf_mean)
+    ax1.set_xlabel('r (\AA)')
+    ax1.set_ylabel('g(r)')
+    ax1.set_xlim( (0, rMax) ) 
+    ax1.legend()
+    #plt.show()
+
+    fig1.savefig('PLOTS_C/{}/rdf_2d_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
+    return rdf_xval, rdf_mean
 
 
 def main():
@@ -76,6 +165,7 @@ def main():
     DIR = args.rho
     units = args.units
     configs = args.start
+    dens = args.density
 
 
     if units == 'metal':
@@ -109,7 +199,7 @@ def main():
     '#abd9e9', '#fdae61', '#f46d43', '#d73027', '#a50026']
 
 
-    ls = ['-', '--', '-.', ':','-', '--', '-.', ':']
+    ls = ['--','-', '--', '-.', ':','-', '--', '-.', ':']
 
     fig2 = plt.figure(figsize=fig_size_sq)
     ax2  = fig2.add_axes([0.15,0.15,0.75,0.75])
@@ -120,96 +210,40 @@ def main():
     for dz in DZ:
         compname += dz
         for c in configs:
+            if dens == None:
+                print '\n\n#---------------------Reading in dz = {}, DEN = {} --------------------#'.format(dz,c)
 
-            print '\n\n#---------------------Reading in dz = {}, DEN = {} --------------------#'.format(dz,c)
-
-
-            #------------------------Code---------------------------#
-            orderArr  = []
-            z_name = 'spce_T298_z{}_eps1.0_{}'.format(dz,c)
-
-            # Loop over different times
-
-            filename = 'Water_Graphene/{}/xyz.{}.xyz'.format(DIR,z_name)
-
-            steps = 0
-            positions = []
-            rdf_tot = []
-            with open(filename) as infile:
-                for line in infile:
-                    l = line.split()
-                    if len(l) == 1:
-                        if steps != 0 and positions != []:
-                            
-                            positions = np.array(positions)
-                            positions = apply_pbc(positions)
-                            xpos = positions[:,0]
-                            ypos = positions[:,1]
-                            zpos = positions[:,2]
-
-                            extent = 30
-                            rMax = 8
-                            dr = 0.1
-                            rdf = pairCorrelationFunction_2D(xpos, ypos, extent, rMax, dr)
-                            print rdf
-                            rdf_tot.append(rdf[0])
-                            # Plot RDF
-                            #fig1 = plt.figure(figsize=fig_size_sq)
-                            #ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
-                            
-                            #ax1.plot(rdf[1], rdf[0])
-                            #ax1.set_xlabel('r (\AA)')
-                            #ax1.set_ylabel('g(r)')
-                            #ax1.set_ylim( (0, 1) ) 
-                            #ax1.legend()
-
-
-                            #------------------Saving figures---------------#
-                            #fig1.savefig('PLOTS_C/{}/order_param_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
-
-
-                            #plt.show()
-                        steps += 1
-                        no_atoms = int(l[0])
-                        positions = []
-                    elif len(l) == 3:
-                        time = int(l[2])*dt
-                        print '\nAt step {} the time is {} ps.'.format(steps,time)
-
-                    elif len(l) == 4 and l[0]=='O':
-                        x_val = float(l[1])
-                        y_val = float(l[2])
-                        z_val = float(l[3])
-
-                        positions.append([x_val,y_val,z_val])
-
-
-            rdf_mean = np.mean(np.array(rdf_tot), axis=0)
-            rdf_xval = rdf[1]
-
-            fig1 = plt.figure(figsize=fig_size_sq)
-            ax1  = fig1.add_axes([0.15,0.15,0.75,0.75])
-            
-            ax1.plot(rdf_xval, rdf_mean)
-            ax1.set_xlabel('r (\AA)')
-            ax1.set_ylabel('g(r)')
-            #ax1.set_ylim( (0, 1) ) 
-            ax1.legend()
-            #plt.show()
-
-            fig1.savefig('PLOTS_C/{}/rdf_2d_{}.pdf'.format(DIR,z_name),bbox_inches='tight')
-
-            if count == 0:
-                ccount = 0
+                z_name = 'spce_T298_z{}_eps1.0_{}'.format(dz, c)
+                rdf_xval, rdf_mean = rdf_calc(DIR, dt, z_name)
+                if count == 0:
+                    ccount = 0
+                else:
+                    ccount = 2*count+4
+                if dz=='6':
+                    Hlabel = 'liquid'
+                elif dz=='7.5':
+                    Hlabel='frozen'
+                else:
+                    Hlabel='H = {} \AA'.format(dz)
+                ax2.plot(rdf_xval, rdf_mean, linestyle = ls[count], c=colours[ccount], label=Hlabel)
             else:
-                ccount = 2*count+2
-            ax2.plot(rdf_xval, rdf_mean, linestyle = ls[count], c=colours[ccount], label='H = {} \AA'.format(dz))
+                for r in dens:
+                    print '\n\n#---------------------Reading in dz = {}, DEN = {}, r= {} --------------------#'.format(dz,c,r)
+
+                    z_name = 'spce_T298_z{}_r{}_eps1.0_{}'.format(dz, r, c)
+                    rdf_xval, rdf_mean = rdf_calc(DIR, dt, z_name)
+
+
+            
+            
         count += 1
 
+    rMax = 20
     ax2.set_xlabel('r (\AA)')
     ax2.set_ylabel('g(r)')
-    ax2.set_xlim( (0, 8) ) 
+    ax2.set_xlim( (0, rMax) ) 
     ax2.legend()
+    #plt.show()
 
     fig2.savefig('PLOTS_C/{}/rdf_2d_comp_{}.pdf'.format(DIR,compname),bbox_inches='tight')
 
